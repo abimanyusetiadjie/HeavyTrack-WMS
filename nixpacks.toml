@@ -10,7 +10,7 @@ nixPkgs = ["php82", "php82Packages.composer", "php82Extensions.pdo_mysql", "php8
 # Dijalankan saat proses Build di server Railway
 cmds = [
     "composer install --no-dev --optimize-autoloader --no-interaction",
-    "php artisan storage:link"
+    "php artisan storage:link", "php artisan filament:assets"
 ]
 
 [phases.release]

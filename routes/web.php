@@ -31,3 +31,5 @@ Route::get('/health', function () {
     $health['failed_jobs'] = \Illuminate\Support\Facades\DB::table('failed_jobs')->count();
     return response()->json($health, $health['status'] === 'ok' ? 200 : 500);
 });
+
+Route::get('/debug-asset', function() { return asset('css/filament/filament/app.css'); });
