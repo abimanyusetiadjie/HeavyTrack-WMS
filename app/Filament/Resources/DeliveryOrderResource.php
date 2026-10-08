@@ -144,7 +144,7 @@ class DeliveryOrderResource extends Resource
                 Tables\Actions\Action::make('print')
                     ->label('Cetak Surat Jalan')
                     ->icon('heroicon-o-printer')
-                    ->url(fn (DeliveryOrder $record): string => route('print.delivery-order', $record))
+                    ->url(fn (DeliveryOrder $record): string => route('print.delivery-order', ['deliveryOrder' => $record->id]))
                     ->openUrlInNewTab(),
             ])
             ->bulkActions([
