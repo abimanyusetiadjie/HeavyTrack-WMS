@@ -1,0 +1,26 @@
+[providers]
+# Mendeteksi otomatis bahwa ini adalah aplikasi PHP
+php = "8.2"
+
+[phases.setup]
+# Memastikan ekstensi PHP yang dibutuhkan WMS & Dompdf tersedia
+nixPkgs = ["php82", "php82Packages.composer", "php82Extensions.pdo_mysql", "php82Extensions.gd", "php82Extensions.mbstring", "php82Extensions.zip", "php82Extensions.dom", "php82Extensions.intl"]
+
+[phases.build]
+# Dijalankan saat proses Build di server Railway
+cmds = [
+    "composer install --no-dev --optimize-autoloader --no-interaction",
+    "php artisan storage:link"
+]
+
+[phases.release]
+# Dijalankan SETELAH build sukses, TAPI SEBELUM aplikasi live
+# Sangat cocok untuk menjalankan migrasi dan caching otomatis
+cmds = [
+    "php artisan migrate --force",
+    "php artisan config:cache",
+    "php artisan route:cache",
+    "php artisan view:cache",
+    "php artisan filament:cache-components"
+]
+
