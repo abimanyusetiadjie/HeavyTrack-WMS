@@ -17,7 +17,7 @@ cmds = [
 # Dijalankan SETELAH build sukses, TAPI SEBELUM aplikasi live
 # Sangat cocok untuk menjalankan migrasi dan caching otomatis
 cmds = [
-    "php artisan migrate --force",
+    "php artisan migrate --force", "php artisan route:clear", "php artisan config:clear", "php artisan view:clear",
     
     
     
