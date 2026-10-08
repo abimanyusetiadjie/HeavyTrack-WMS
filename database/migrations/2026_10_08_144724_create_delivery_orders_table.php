@@ -21,7 +21,7 @@ return new class extends Migration
             $table->date('delivery_date');
             $table->string('driver_name', 100)->nullable();
             $table->string('vehicle_plate_number', 30)->nullable();
-            $table\->enum('status', ['DRAFT', 'ISSUED', 'CONFIRMED', 'SHIPPED', 'RECEIVED', 'VOID'])->default('ISSUED');
+            $table->enum('status', ['DRAFT', 'ISSUED', 'CONFIRMED', 'SHIPPED', 'RECEIVED', 'VOID'])->default('ISSUED');
             $table->text('notes')->nullable();
             $table->foreignId('created_by')->constrained('users');
             $table->timestamps();
