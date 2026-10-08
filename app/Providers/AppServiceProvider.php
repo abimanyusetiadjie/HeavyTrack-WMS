@@ -21,6 +21,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force HTTPS in production to prevent mixed-content blocked assets (CSS/JS)
+        if (env('APP_ENV') !== 'local') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         DeliveryOrder::observe(DeliveryOrderObserver::class);
         \App\Models\Invoice::observe(\App\Observers\InvoiceObserver::class);
     }
