@@ -18,7 +18,7 @@ cmds = [
 # Sangat cocok untuk menjalankan migrasi dan caching otomatis
 cmds = [
     "php artisan migrate --force",
-    "php artisan config:cache",
+    
     "php artisan route:cache",
     "php artisan view:cache",
     "php artisan filament:cache-components", "php artisan db:seed --force"
