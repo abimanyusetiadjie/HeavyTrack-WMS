@@ -13,7 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Schemas\Schema;
+use Filament\Forms\Form;
 
 class DeliveryOrderResource extends Resource
 {
@@ -22,9 +22,9 @@ class DeliveryOrderResource extends Resource
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-truck';
     protected static ?string $modelLabel = 'Delivery Order';
 
-    public static function form(Schema $schema): Schema
+    public static function form(Form $form): Form
     {
-        return $schema
+        return $form
             ->schema([
                 Forms\Components\Section::make('General Information')->schema([
                     Forms\Components\TextInput::make('do_number')

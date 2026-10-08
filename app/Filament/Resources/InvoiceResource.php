@@ -13,7 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Schemas\Schema;
+use Filament\Forms\Form;
 
 class InvoiceResource extends Resource
 {
@@ -22,9 +22,9 @@ class InvoiceResource extends Resource
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $modelLabel = 'Invoice (Faktur)';
 
-    public static function form(Schema $schema): Schema
+    public static function form(Form $form): Form
     {
-        return $schema
+        return $form
             ->schema([
                 Forms\Components\Section::make('General Information')->schema([
                     Forms\Components\TextInput::make('invoice_number')
