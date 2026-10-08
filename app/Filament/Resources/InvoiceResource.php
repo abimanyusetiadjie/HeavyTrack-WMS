@@ -8,7 +8,7 @@ use App\Models\DeliveryOrder;
 use App\Models\Part;
 use App\Models\Payment;
 use Filament\Forms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -21,9 +21,9 @@ class InvoiceResource extends Resource
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $modelLabel = 'Invoice (Faktur)';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Forms\Components\Section::make('General Information')->schema([
                     Forms\Components\TextInput::make('invoice_number')

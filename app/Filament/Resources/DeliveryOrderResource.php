@@ -7,7 +7,7 @@ use App\Models\DeliveryOrder;
 use App\Models\Part;
 use App\Models\StockBalance;
 use Filament\Forms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -21,9 +21,9 @@ class DeliveryOrderResource extends Resource
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-truck';
     protected static ?string $modelLabel = 'Delivery Order';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Forms\Components\Section::make('General Information')->schema([
                     Forms\Components\TextInput::make('do_number')
