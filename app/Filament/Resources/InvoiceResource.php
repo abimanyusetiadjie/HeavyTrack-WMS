@@ -200,22 +200,22 @@ class InvoiceResource extends Resource
                 Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                \Filament\Actions\EditAction::make(),
                 
-                Tables\Actions\Action::make('printFaktur')
+                \Filament\Actions\Action::make('printFaktur')
                     ->label('Cetak Faktur')
                     ->icon('heroicon-o-printer')
                     ->url(fn (Invoice $record): string => route('print.invoice', ['invoice' => $record->id]))
                     ->openUrlInNewTab(),
                     
-                Tables\Actions\Action::make('printKwitansi')
+                \Filament\Actions\Action::make('printKwitansi')
                     ->label('Cetak Kwitansi')
                     ->icon('heroicon-o-currency-dollar')
                     ->url(fn (Invoice $record): string => route('print.receipt', ['invoice' => $record->id]))
                     ->openUrlInNewTab()
                     ->visible(fn (Invoice $record): bool => $record->paid_amount > 0),
                     
-                Tables\Actions\Action::make('recordPayment')
+                \Filament\Actions\Action::make('recordPayment')
                     ->label('Catat Pembayaran')
                     ->icon('heroicon-o-banknotes')
                     ->form([
@@ -255,8 +255,8 @@ class InvoiceResource extends Resource
                     ->visible(fn (Invoice $record): bool => $record->status !== 'PAID' && $record->status !== 'VOID'),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                \Filament\Actions\BulkActionGroup::make([
+                    \Filament\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
