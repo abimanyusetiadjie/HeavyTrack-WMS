@@ -19,14 +19,18 @@ class DeliveryOrderResource extends Resource
     protected static ?string $model = DeliveryOrder::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-truck';
-    protected static ?string $modelLabel = 'Delivery Order';
+    protected static ?string $modelLabel = 'Surat Jalan (DO)';
+    protected static ?string $pluralModelLabel = 'Surat Jalan';
 
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->schema([
-                \Filament\Schemas\Components\Section::make('General Information')->schema([
+                \Filament\Schemas\Components\Section::make('Informasi Utama')
+                    ->description('Detail dasar surat jalan dan tujuan pengiriman.')
+                    ->schema([
                     Forms\Components\TextInput::make('do_number')
+                        ->label('Nomor Surat Jalan')
                         ->required()
                         ->unique(ignoreRecord: true)
                         ->default(function () {
@@ -35,39 +39,47 @@ class DeliveryOrderResource extends Resource
                         })
                         ->maxLength(50),
                     
-                    Forms\Components\Select::make('sales_order_id')
-                        ->relationship('salesOrder', 'order_number')
-                        ->searchable(),
+                    Forms\Components\DatePicker::make('delivery_date')
+                        ->label('Tanggal Pengiriman')
+                        ->required()
+                        ->default(now()),
                         
                     Forms\Components\Select::make('warehouse_id')
-                        ->relationship('warehouse', 'name')->createOptionForm([ \Filament\Forms\Components\TextInput::make('name')->required()->maxLength(100), \Filament\Forms\Components\TextInput::make('code')->maxLength(50), \Filament\Forms\Components\Textarea::make('address')->maxLength(500), ])
+                        ->label('Gudang Asal')
+                        ->relationship('warehouse', 'name')->createOptionForm([ 
+                            \Filament\Forms\Components\TextInput::make('name')->label('Nama Gudang')->required()->maxLength(100), 
+                            \Filament\Forms\Components\TextInput::make('code')->label('Kode')->maxLength(50), 
+                            \Filament\Forms\Components\Textarea::make('address')->label('Alamat Lengkap')->maxLength(500), 
+                        ])
                         ->required()
                         ->reactive()
                         ->searchable(),
                         
                     Forms\Components\Select::make('contact_id')
-                        ->relationship('contact', 'company_name')->createOptionForm([ \Filament\Forms\Components\TextInput::make('company_name')->required()->maxLength(255), \Filament\Forms\Components\TextInput::make('contact_person')->maxLength(255), \Filament\Forms\Components\TextInput::make('phone')->tel()->maxLength(50), \Filament\Forms\Components\Textarea::make('address')->maxLength(500), ])
+                        ->label('Pelanggan / Tujuan')
+                        ->relationship('contact', 'company_name')->createOptionForm([ 
+                            \Filament\Forms\Components\TextInput::make('company_name')->label('Nama Perusahaan/Orang')->required()->maxLength(255), 
+                            \Filament\Forms\Components\TextInput::make('contact_person')->label('Nama Kontak')->maxLength(255), 
+                            \Filament\Forms\Components\TextInput::make('phone')->label('Nomor Telepon')->tel()->maxLength(50), 
+                            \Filament\Forms\Components\Textarea::make('address')->label('Alamat Lengkap')->maxLength(500), 
+                        ])
                         ->required()
                         ->searchable(),
                         
-                    Forms\Components\DatePicker::make('delivery_date')
-                        ->required()
-                        ->default(now()),
-                        
-                    Forms\Components\TextInput::make('driver_name')
-                        ->maxLength(100),
-                        
-                    Forms\Components\TextInput::make('vehicle_plate_number')
-                        ->maxLength(30),
+                    Forms\Components\Select::make('sales_order_id')
+                        ->label('Referensi Sales Order (Opsional)')
+                        ->relationship('salesOrder', 'order_number')
+                        ->searchable(),
                         
                     Forms\Components\Select::make('status')
+                        ->label('Status Pengiriman')
                         ->options([
                             'DRAFT' => 'DRAFT',
-                            'ISSUED' => 'ISSUED',
-                            'CONFIRMED' => 'CONFIRMED',
-                            'SHIPPED' => 'SHIPPED',
-                            'RECEIVED' => 'RECEIVED',
-                            'VOID' => 'VOID',
+                            'ISSUED' => 'DITERBITKAN',
+                            'CONFIRMED' => 'DIKONFIRMASI',
+                            'SHIPPED' => 'DALAM PENGIRIMAN',
+                            'RECEIVED' => 'DITERIMA',
+                            'VOID' => 'DIBATALKAN',
                         ])
                         ->default('ISSUED')
                         ->required(),
@@ -76,12 +88,26 @@ class DeliveryOrderResource extends Resource
                         ->default(auth()->id() ?? 1),
                 ])->columns(2),
 
-                \Filament\Schemas\Components\Section::make('Items')->schema([
+                \Filament\Schemas\Components\Section::make('Informasi Logistik')
+                    ->description('Detail kendaraan dan supir pengirim.')
+                    ->schema([
+                    Forms\Components\TextInput::make('driver_name')
+                        ->label('Nama Supir')
+                        ->maxLength(100),
+                        
+                    Forms\Components\TextInput::make('vehicle_plate_number')
+                        ->label('Plat Nomor Kendaraan')
+                        ->maxLength(30),
+                ])->columns(2),
+
+                \Filament\Schemas\Components\Section::make('Daftar Barang (Item)')
+                    ->schema([
                     Forms\Components\Repeater::make('items')
+                        ->label('Barang yang Dikirim')
                         ->relationship()
                         ->schema([
                             Forms\Components\Select::make('part_id')
-                                ->label('Product (Part)')
+                                ->label('Pilih Produk/Part')
                                 ->options(Part::query()->pluck('name', 'id'))
                                 ->required()
                                 ->reactive()
@@ -98,29 +124,39 @@ class DeliveryOrderResource extends Resource
                                     } else {
                                         $set('available_stock', 0);
                                     }
-                                }),
+                                })
+                                ->columnSpan(3),
                                 
                             Forms\Components\TextInput::make('available_stock')
+                                ->label('Sisa Stok')
                                 ->disabled()
                                 ->dehydrated(false)
-                                ->numeric(),
+                                ->numeric()
+                                ->columnSpan(1),
                                 
                             Forms\Components\TextInput::make('qty')
+                                ->label('Jumlah (Qty)')
                                 ->required()
                                 ->numeric()
-                                ->minValue(1)->lte('available_stock')->validationMessages(['lte' => 'Kuantitas tidak boleh melebihi stok yang tersedia.']),
+                                ->minValue(1)->lte('available_stock')->validationMessages(['lte' => 'Kuantitas tidak boleh melebihi stok yang tersedia.'])
+                                ->columnSpan(1),
                                 
                             Forms\Components\TextInput::make('unit')
+                                ->label('Satuan')
                                 ->required()
-                                ->maxLength(20),
+                                ->maxLength(20)
+                                ->columnSpan(1),
                                 
                             Forms\Components\TextInput::make('notes')
-                                ->maxLength(255),
-                        ])->columns(5),
+                                ->label('Catatan Tambahan')
+                                ->maxLength(255)
+                                ->columnSpan(3),
+                        ])->columns(9),
                 ]),
                 
-                \Filament\Schemas\Components\Section::make('Notes')->schema([
+                \Filament\Schemas\Components\Section::make('Catatan Surat Jalan')->schema([
                     Forms\Components\Textarea::make('notes')
+                        ->label('Keterangan / Catatan')
                         ->columnSpanFull(),
                 ])
             ]);
@@ -130,27 +166,27 @@ class DeliveryOrderResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('do_number')->searchable(),
-                Tables\Columns\TextColumn::make('delivery_date')->date()->sortable(),
-                Tables\Columns\TextColumn::make('warehouse.name'),
-                Tables\Columns\TextColumn::make('contact.company_name'),
-                Tables\Columns\TextColumn::make('status')->badge(),
+                Tables\Columns\TextColumn::make('do_number')->label('Nomor SJ')->searchable(),
+                Tables\Columns\TextColumn::make('delivery_date')->label('Tgl Kirim')->date('d M Y')->sortable(),
+                Tables\Columns\TextColumn::make('warehouse.name')->label('Gudang Asal'),
+                Tables\Columns\TextColumn::make('contact.company_name')->label('Tujuan / Pelanggan'),
+                Tables\Columns\TextColumn::make('status')->label('Status')->badge(),
             ])
             ->filters([
-                Tables\Filters\TrashedFilter::make(),
+                Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
             ])
             ->actions([
-                \Filament\Actions\EditAction::make(),
+                \Filament\Actions\EditAction::make()->label('Ubah'),
                 \Filament\Actions\Action::make('print')
-                    ->label('Cetak Surat Jalan')
+                    ->label('Cetak PDF')
                     ->icon('heroicon-o-printer')
                     ->url(fn (DeliveryOrder $record): string => route('print.delivery-order', ['deliveryOrder' => $record->id]))
                     ->openUrlInNewTab(),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
-                ]),
+                    \Filament\Actions\DeleteBulkAction::make()->label('Hapus Terpilih'),
+                ])->label('Aksi Masal'),
             ]);
     }
 
