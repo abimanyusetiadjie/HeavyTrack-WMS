@@ -40,12 +40,20 @@ class ProductResource extends Resource
                             ->maxLength(255),
                         
                         Forms\Components\Select::make('brand_id')
-                            ->relationship('brand', 'name')->createOptionForm([ \Filament\Forms\Components\TextInput::make('name')->required()->maxLength(100), \Filament\Forms\Components\TextInput::make('code')->maxLength(50), ])
+                            ->relationship('brand', 'name')
+                            ->createOptionForm([
+                                \Filament\Forms\Components\TextInput::make('name')->required()->maxLength(100),
+                                \Filament\Forms\Components\TextInput::make('code')->maxLength(50),
+                            ])
                             ->required()
                             ->searchable(),
                             
                         Forms\Components\Select::make('category_id')
-                            ->relationship('category', 'name')->createOptionForm([ \Filament\Forms\Components\TextInput::make('name')->required()->maxLength(100), \Filament\Forms\Components\TextInput::make('code')->maxLength(50), ])
+                            ->relationship('category', 'name')
+                            ->createOptionForm([
+                                \Filament\Forms\Components\TextInput::make('name')->required()->maxLength(100),
+                                \Filament\Forms\Components\TextInput::make('code')->maxLength(50),
+                            ])
                             ->searchable(),
                             
                         Forms\Components\Textarea::make('description')
@@ -123,11 +131,11 @@ class ProductResource extends Resource
                 Tables\Filters\TrashedFilter::make(),
                 
                 Tables\Filters\SelectFilter::make('brand_id')
-                    ->relationship('brand', 'name')->createOptionForm([ \Filament\Forms\Components\TextInput::make('name')->required()->maxLength(100), \Filament\Forms\Components\TextInput::make('code')->maxLength(50), ])
+                    ->relationship('brand', 'name')
                     ->label('Brand'),
                     
                 Tables\Filters\SelectFilter::make('category_id')
-                    ->relationship('category', 'name')->createOptionForm([ \Filament\Forms\Components\TextInput::make('name')->required()->maxLength(100), \Filament\Forms\Components\TextInput::make('code')->maxLength(50), ])
+                    ->relationship('category', 'name')
                     ->label('Category'),
                     
                 Tables\Filters\Filter::make('low_stock')
