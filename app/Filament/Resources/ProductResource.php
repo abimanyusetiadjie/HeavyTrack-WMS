@@ -24,7 +24,7 @@ class ProductResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\Section::make('Informasi Produk')
+                \Filament\Schemas\Components\Section::make('Informasi Produk')
                     ->schema([
                         Forms\Components\TextInput::make('part_number')
                             ->required()
@@ -61,7 +61,7 @@ class ProductResource extends Resource
                             ->columnSpanFull(),
                     ])->columns(2),
                     
-                Forms\Components\Section::make('Stok & Lokasi')
+                \Filament\Schemas\Components\Section::make('Stok & Lokasi')
                     ->schema([
                         Forms\Components\TextInput::make('bin_location')
                             ->label('Rak/Lokasi Gudang')
@@ -77,7 +77,7 @@ class ProductResource extends Resource
                             ->default(5),
                     ])->columns(3),
                     
-                Forms\Components\Section::make('Harga & Status')
+                \Filament\Schemas\Components\Section::make('Harga & Status')
                     ->schema([
                         Forms\Components\TextInput::make('cost_price')
                             ->required()

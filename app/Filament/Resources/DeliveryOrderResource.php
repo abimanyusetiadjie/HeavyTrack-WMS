@@ -25,7 +25,7 @@ class DeliveryOrderResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\Section::make('General Information')->schema([
+                \Filament\Schemas\Components\Section::make('General Information')->schema([
                     Forms\Components\TextInput::make('do_number')
                         ->required()
                         ->unique(ignoreRecord: true)
@@ -76,7 +76,7 @@ class DeliveryOrderResource extends Resource
                         ->default(auth()->id() ?? 1),
                 ])->columns(2),
 
-                Forms\Components\Section::make('Items')->schema([
+                \Filament\Schemas\Components\Section::make('Items')->schema([
                     Forms\Components\Repeater::make('items')
                         ->relationship()
                         ->schema([
@@ -119,7 +119,7 @@ class DeliveryOrderResource extends Resource
                         ])->columns(5),
                 ]),
                 
-                Forms\Components\Section::make('Notes')->schema([
+                \Filament\Schemas\Components\Section::make('Notes')->schema([
                     Forms\Components\Textarea::make('notes')
                         ->columnSpanFull(),
                 ])

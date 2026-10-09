@@ -25,7 +25,7 @@ class InvoiceResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\Section::make('General Information')->schema([
+                \Filament\Schemas\Components\Section::make('General Information')->schema([
                     Forms\Components\TextInput::make('invoice_number')
                         ->required()
                         ->unique(ignoreRecord: true)
@@ -102,7 +102,7 @@ class InvoiceResource extends Resource
                         ->default(auth()->id() ?? 1),
                 ])->columns(2)->disabled(fn (?Invoice $record) => $record?->status === 'PAID'),
 
-                Forms\Components\Section::make('Items')->schema([
+                \Filament\Schemas\Components\Section::make('Items')->schema([
                     Forms\Components\Repeater::make('items')
                         ->relationship()
                         ->schema([
@@ -152,7 +152,7 @@ class InvoiceResource extends Resource
                         ])->columns(5)
                 ])->disabled(fn (?Invoice $record) => $record?->status === 'PAID'),
                 
-                Forms\Components\Section::make('Totals')->schema([
+                \Filament\Schemas\Components\Section::make('Totals')->schema([
                     Forms\Components\TextInput::make('subtotal')
                         ->required()
                         ->numeric()
