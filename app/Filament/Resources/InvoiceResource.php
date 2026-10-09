@@ -76,7 +76,7 @@ class InvoiceResource extends Resource
                         }),
                         
                     Forms\Components\Select::make('contact_id')
-                        ->relationship('contact', 'company_name')
+                        ->relationship('contact', 'company_name')->createOptionForm([\n\Filament\Forms\Components\TextInput::make('company_name')->required()->maxLength(255),\n\Filament\Forms\Components\TextInput::make('contact_person')->maxLength(255),\n\Filament\Forms\Components\TextInput::make('phone')->tel()->maxLength(50),\n\Filament\Forms\Components\Textarea::make('address')->maxLength(500),\n])
                         ->required()
                         ->searchable(),
                         
