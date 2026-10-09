@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Part extends Model
 {
+    use SoftDeletes;
+
     //
 
     public function brand() {

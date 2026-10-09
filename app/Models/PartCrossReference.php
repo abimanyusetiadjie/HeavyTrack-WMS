@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PartCrossReference extends Model
 {
+    use SoftDeletes;
+
     //
 
     public function sourcePart() {

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Warehouse extends Model
 {
+    use SoftDeletes;
+
     //
 
     public function stockBalances() {

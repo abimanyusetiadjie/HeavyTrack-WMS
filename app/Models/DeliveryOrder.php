@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DeliveryOrder extends Model
 {
+    use SoftDeletes;
+
     //
 
     public function salesOrder() {
