@@ -53,7 +53,7 @@ class InvoiceResource extends Resource
                                     $items = [];
                                     $subtotal = 0;
                                     foreach ($do->items as $item) {
-                                        $price = $item->part->sale_price ?? 0;
+                                        $price = $item->part->selling_price ?? 0;
                                         $total = $item->qty * $price;
                                         $subtotal += $total;
                                         
@@ -131,10 +131,10 @@ class InvoiceResource extends Resource
                                         $set('part_number_snapshot', $part->part_number);
                                         $set('part_name_snapshot', $part->name);
                                         $set('unit', $part->unit);
-                                        $set('unit_price', $part->sale_price ?? 0);
+                                        $set('unit_price', $part->selling_price ?? 0);
                                         $qty = $get('qty') ?? 1;
                                         $set('qty', $qty);
-                                        $set('total_price', $qty * ($part->sale_price ?? 0));
+                                        $set('total_price', $qty * ($part->selling_price ?? 0));
                                     }
                                 })
                                 ->columnSpan(3),
