@@ -35,3 +35,5 @@ Route::get('/health', function () {
 Route::get('/debug-asset', function() { return asset('css/filament/filament/app.css'); });
 
 Route::get('/run-seeder-now', function() { \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]); return 'Seeding Success! You can now login.'; });
+
+Route::get('/run-dummy-seeder-now', function() { \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'DummyDataSeeder', '--force' => true]); return 'Dummy data has been seeded successfully! Go back to the dashboard.'; });
