@@ -29,13 +29,13 @@ class DummyDataSeeder extends Seeder
         $parts = [];
         for ($i=1; $i<=15; $i++) {
             $part = Part::firstOrCreate([
-                'part_number' => 'PN-' . str_pad($i, 4, '0', STR_PAD_LEFT),
+                'part_number' => 'PN-' . str_pad($i, 4, '0', STR_PAD_LEFT), 'clean_part_number' => 'PN' . str_pad($i, 4, '0', STR_PAD_LEFT),
             ], [
                 'name' => 'Sparepart Heavy Duty ' . $i,
                 'description' => 'Genuine replacement part for excavator models.',
                 'brand_id' => rand(1, 4),
                 'category_id' => rand(1, 4),
-                'uom' => 'PCS',
+                'unit' => 'PCS',
                 'min_stock_level' => 10,
                 'purchase_price' => rand(500, 2000) * 1000,
                 'sale_price' => rand(2500, 5000) * 1000,

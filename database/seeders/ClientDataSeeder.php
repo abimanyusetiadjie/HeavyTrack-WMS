@@ -53,12 +53,12 @@ class ClientDataSeeder extends Seeder
 
                 // Create Part
                 Part::firstOrCreate(
-                    ['part_number' => trim($p[0])],
+                    ['part_number' => trim($p[0]), 'clean_part_number' => preg_replace('/[^A-Za-z0-9]/', '', trim($p[0]))],
                     [
                         'name' => trim($p[2]),
                         'brand_id' => $brand->id,
                         'category_id' => $category->id,
-                        'uom' => trim($p[4]),
+                        'unit' => trim($p[4]),
                         'description' => trim($p[5]),
                         'min_stock_level' => 5,
                     ]
