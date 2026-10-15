@@ -22,8 +22,8 @@ class DummyDataSeeder extends Seeder
         $w2 = Warehouse::firstOrCreate(['name' => 'Gudang Cabang Surabaya', 'code' => 'SUB-01'], ['address' => 'Jl. Rungkut Industri No. 5, Surabaya']);
 
         // Contacts
-        $c1 = Contact::firstOrCreate(['company_name' => 'PT Bumi Karsa'], ['contact_person' => 'Budi Santoso', 'phone' => '081234567890']);
-        $c2 = Contact::firstOrCreate(['company_name' => 'PT Adhi Karya'], ['contact_person' => 'Joko Anwar', 'phone' => '081298765432']);
+        $c1 = Contact::firstOrCreate(['company_name' => 'PT Bumi Karsa'], ['type' => 'CUSTOMER', 'pic_name' => 'Budi Santoso', 'phone' => '081234567890']);
+        $c2 = Contact::firstOrCreate(['company_name' => 'PT Adhi Karya'], ['type' => 'CUSTOMER', 'pic_name' => 'Joko Anwar', 'phone' => '081298765432']);
 
         // Parts
         $parts = [];

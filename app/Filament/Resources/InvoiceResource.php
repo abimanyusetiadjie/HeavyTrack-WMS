@@ -110,11 +110,13 @@ class InvoiceResource extends Resource
                                     
                                 Forms\Components\Select::make('contact_id')
                                     ->label('Ditagihkan Kepada (Klien)')
-                                    ->relationship('contact', 'company_name')->createOptionForm([ 
-                                        \Filament\Forms\Components\TextInput::make('company_name')->label('Nama Perusahaan/Orang')->required()->maxLength(255), 
-                                        \Filament\Forms\Components\TextInput::make('contact_person')->label('Nama Kontak')->maxLength(255), 
-                                        \Filament\Forms\Components\TextInput::make('phone')->label('Telepon')->tel()->maxLength(50), 
-                                        \Filament\Forms\Components\Textarea::make('address')->label('Alamat')->maxLength(500), 
+                                    ->relationship('contact', 'company_name', fn ($query) => $query->whereIn('type', ['CUSTOMER', 'BOTH']))
+                                    ->createOptionForm([ 
+                                        Forms\Components\TextInput::make('company_name')->label('Nama Perusahaan / Pembeli')->required()->maxLength(255), 
+                                        Forms\Components\Hidden::make('type')->default('CUSTOMER'),
+                                        Forms\Components\TextInput::make('pic_name')->label('Nama Kontak / PIC')->maxLength(100), 
+                                        Forms\Components\TextInput::make('phone')->label('Telepon / WA')->tel()->maxLength(50), 
+                                        Forms\Components\Textarea::make('address')->label('Alamat')->maxLength(500), 
                                     ])
                                     ->required()
                                     ->searchable()
