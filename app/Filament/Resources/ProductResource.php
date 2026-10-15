@@ -17,8 +17,35 @@ class ProductResource extends Resource
     protected static ?string $model = Part::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-cube';
+    protected static ?string $navigationGroup = 'Operasional Gudang';
     protected static ?string $modelLabel = 'Produk (Barang)';
     protected static ?string $pluralModelLabel = 'Daftar Produk';
+    protected static ?int $navigationSort = 1;
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+        return $user->hasRole('Admin') || $user->hasRole('Gudang') || $user->hasRole('Kasir') || $user->id === 1;
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1);
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1);
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->id === 1);
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -156,6 +183,59 @@ class ProductResource extends Resource
                     ->query(fn (Builder $query): Builder => $query->whereRaw('(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= parts.min_stock_level')),
             ])
             ->actions([
+                \Filament\Actions\Action::make('adjustStock')
+                    ->label('Sesuaikan Stok')
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->color('warning')
+                    ->visible(fn (): bool => auth()->user()?->hasRole('Admin') || auth()->user()?->hasRole('Gudang') || auth()->id() === 1)
+                    ->form([
+                        Forms\Components\Select::make('warehouse_id')
+                            ->label('Gudang')
+                            ->options(fn () => \App\Models\Warehouse::pluck('name', 'id'))
+                            ->required()
+                            ->default(fn () => \App\Models\Warehouse::first()?->id),
+                        Forms\Components\Select::make('type')
+                            ->label('Tipe Penyesuaian')
+                            ->options([
+                                'SET' => 'Tetapkan Stok Fisik / Opname (=)',
+                                'ADD' => 'Tambah Stok (+)',
+                                'SUB' => 'Kurang Stok (-)',
+                            ])
+                            ->default('SET')
+                            ->required(),
+                        Forms\Components\TextInput::make('qty')
+                            ->label('Jumlah')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0),
+                        Forms\Components\TextInput::make('notes')
+                            ->label('Catatan / Alasan')
+                            ->default('Stok Awal / Hasil Opname')
+                            ->required(),
+                    ])
+                    ->action(function (Part $record, array $data): void {
+                        $inventoryService = app(\App\Services\InventoryService::class);
+                        $warehouseId = (int) $data['warehouse_id'];
+                        $qty = (int) $data['qty'];
+                        $notes = $data['notes'];
+
+                        if ($data['type'] === 'SET') {
+                            $inventoryService->adjustStock($warehouseId, $record->id, $qty, $notes);
+                        } elseif ($data['type'] === 'ADD') {
+                            if ($qty > 0) {
+                                $inventoryService->addStock($warehouseId, $record->id, $qty, 'MANUAL_ADJUSTMENT', $record->id, 'ADJ/' . $record->id, $notes);
+                            }
+                        } elseif ($data['type'] === 'SUB') {
+                            if ($qty > 0) {
+                                $inventoryService->deductStock($warehouseId, $record->id, $qty, 'MANUAL_ADJUSTMENT', $record->id, 'ADJ/' . $record->id, $notes);
+                            }
+                        }
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Stok Produk Berhasil Diperbarui')
+                            ->success()
+                            ->send();
+                    }),
                 \Filament\Actions\EditAction::make()->label('Ubah'),
             ])
             ->bulkActions([

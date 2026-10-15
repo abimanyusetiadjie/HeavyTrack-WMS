@@ -20,8 +20,35 @@ class DeliveryOrderResource extends Resource
     protected static ?string $model = DeliveryOrder::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-truck';
+    protected static ?string $navigationGroup = 'Operasional Gudang';
     protected static ?string $modelLabel = 'Surat Jalan (DO)';
     protected static ?string $pluralModelLabel = 'Surat Jalan';
+    protected static ?int $navigationSort = 3;
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+        return $user->hasRole('Admin') || $user->hasRole('Gudang') || $user->hasRole('Kasir') || $user->id === 1;
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1);
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1);
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->id === 1);
+    }
 
     public static function form(Schema $schema): Schema
     {

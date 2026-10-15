@@ -21,8 +21,35 @@ class InvoiceResource extends Resource
     protected static ?string $model = Invoice::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-currency-dollar';
+    protected static ?string $navigationGroup = 'Keuangan & Penjualan';
     protected static ?string $modelLabel = 'Faktur (Invoice)';
     protected static ?string $pluralModelLabel = 'Daftar Faktur';
+    protected static ?int $navigationSort = 1;
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+        return $user->hasRole('Admin') || $user->hasRole('Kasir') || $user->id === 1;
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->hasRole('Kasir') || $user->id === 1);
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->hasRole('Kasir') || $user->id === 1);
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->hasRole('Admin') || $user->id === 1);
+    }
 
     public static function form(Schema $schema): Schema
     {

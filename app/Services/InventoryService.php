@@ -19,14 +19,12 @@ class InventoryService
         }
 
         return DB::transaction(function () use ($warehouseId, $partId, $qty, $referenceType, $referenceId, $referenceNumber, $notes) {
-            // Gunakan lockForUpdate untuk mencegah race condition
             $stock = StockBalance::where('warehouse_id', $warehouseId)
                 ->where('part_id', $partId)
                 ->lockForUpdate()
                 ->first();
 
             if (!$stock) {
-                // Buat jika belum ada
                 $stock = StockBalance::create([
                     'warehouse_id' => $warehouseId,
                     'part_id' => $partId,
@@ -39,14 +37,13 @@ class InventoryService
             $stock->qty_on_hand += $qty;
             $stock->save();
 
-            // Catat ke ledger
             StockLedger::create([
                 'warehouse_id' => $warehouseId,
                 'part_id' => $partId,
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,
                 'reference_number' => $referenceNumber,
-                'qty_change' => $qty, // Positif
+                'qty_change' => $qty,
                 'balance_before' => $before,
                 'balance_after' => $stock->qty_on_hand,
                 'notes' => $notes,
@@ -86,7 +83,58 @@ class InventoryService
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,
                 'reference_number' => $referenceNumber,
-                'qty_change' => -$qty, // Negatif
+                'qty_change' => -$qty,
+                'balance_before' => $before,
+                'balance_after' => $stock->qty_on_hand,
+                'notes' => $notes,
+                'created_by' => auth()->id() ?? 1,
+            ]);
+
+            return $stock;
+        });
+    }
+
+    /**
+     * Menyesuaikan stok fisik secara langsung (Stock Opname / Penyesuaian Cepat)
+     */
+    public function adjustStock(int $warehouseId, int $partId, int $newTargetQty, string $notes = 'Penyesuaian Stok Fisik')
+    {
+        if ($newTargetQty < 0) {
+            throw new Exception("Jumlah stok tidak boleh bernilai negatif.");
+        }
+
+        return DB::transaction(function () use ($warehouseId, $partId, $newTargetQty, $notes) {
+            $stock = StockBalance::where('warehouse_id', $warehouseId)
+                ->where('part_id', $partId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$stock) {
+                $stock = StockBalance::create([
+                    'warehouse_id' => $warehouseId,
+                    'part_id' => $partId,
+                    'qty_on_hand' => 0,
+                    'qty_reserved' => 0,
+                ]);
+            }
+
+            $before = $stock->qty_on_hand;
+            $diff = $newTargetQty - $before;
+
+            if ($diff === 0) {
+                return $stock;
+            }
+
+            $stock->qty_on_hand = $newTargetQty;
+            $stock->save();
+
+            StockLedger::create([
+                'warehouse_id' => $warehouseId,
+                'part_id' => $partId,
+                'reference_type' => 'STOCK_ADJUSTMENT',
+                'reference_id' => $stock->id,
+                'reference_number' => 'ADJ/' . date('Ymd') . '/' . $partId,
+                'qty_change' => $diff,
                 'balance_before' => $before,
                 'balance_after' => $stock->qty_on_hand,
                 'notes' => $notes,

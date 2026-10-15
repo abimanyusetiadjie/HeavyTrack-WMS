@@ -29,5 +29,6 @@ class AppServiceProvider extends ServiceProvider
 
         DeliveryOrder::observe(DeliveryOrderObserver::class);
         \App\Models\Invoice::observe(\App\Observers\InvoiceObserver::class);
+        \App\Models\GoodsReceipt::observe(\App\Observers\GoodsReceiptObserver::class);
     }
 }

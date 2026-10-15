@@ -28,6 +28,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->profile()
             ->brandName('Mitra Abadi Nusantara')
             ->colors([
                 'primary' => Color::Amber,
