@@ -17,7 +17,7 @@ class ProductResource extends Resource
     protected static ?string $model = Part::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-cube';
-    protected static ?string $navigationGroup = 'Operasional Gudang';
+    protected static \UnitEnum|string|null $navigationGroup = 'Operasional Gudang';
     protected static ?string $modelLabel = 'Produk (Barang)';
     protected static ?string $pluralModelLabel = 'Daftar Produk';
     protected static ?int $navigationSort = 1;

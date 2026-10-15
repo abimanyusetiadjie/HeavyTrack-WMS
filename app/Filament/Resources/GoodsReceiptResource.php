@@ -19,7 +19,7 @@ class GoodsReceiptResource extends Resource
     protected static ?string $model = GoodsReceipt::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-arrow-down-tray';
-    protected static ?string $navigationGroup = 'Operasional Gudang';
+    protected static \UnitEnum|string|null $navigationGroup = 'Operasional Gudang';
     protected static ?string $modelLabel = 'Barang Masuk (Penerimaan)';
     protected static ?string $pluralModelLabel = 'Barang Masuk (Inbound)';
     protected static ?int $navigationSort = 2;

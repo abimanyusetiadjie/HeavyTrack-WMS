@@ -20,7 +20,7 @@ class DeliveryOrderResource extends Resource
     protected static ?string $model = DeliveryOrder::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-truck';
-    protected static ?string $navigationGroup = 'Operasional Gudang';
+    protected static \UnitEnum|string|null $navigationGroup = 'Operasional Gudang';
     protected static ?string $modelLabel = 'Surat Jalan (DO)';
     protected static ?string $pluralModelLabel = 'Surat Jalan';
     protected static ?int $navigationSort = 3;

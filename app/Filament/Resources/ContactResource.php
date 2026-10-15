@@ -16,7 +16,7 @@ class ContactResource extends Resource
     protected static ?string $model = Contact::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-user-group';
-    protected static ?string $navigationGroup = 'Master Data';
+    protected static \UnitEnum|string|null $navigationGroup = 'Master Data';
     protected static ?string $modelLabel = 'Kontak (Relasi)';
     protected static ?string $pluralModelLabel = 'Pelanggan & Pemasok';
     protected static ?int $navigationSort = 1;

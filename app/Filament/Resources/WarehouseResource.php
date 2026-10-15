@@ -16,7 +16,7 @@ class WarehouseResource extends Resource
     protected static ?string $model = Warehouse::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-building-storefront';
-    protected static ?string $navigationGroup = 'Master Data';
+    protected static \UnitEnum|string|null $navigationGroup = 'Master Data';
     protected static ?string $modelLabel = 'Gudang';
     protected static ?string $pluralModelLabel = 'Daftar Gudang';
     protected static ?int $navigationSort = 2;

@@ -21,7 +21,7 @@ class InvoiceResource extends Resource
     protected static ?string $model = Invoice::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-currency-dollar';
-    protected static ?string $navigationGroup = 'Keuangan & Penjualan';
+    protected static \UnitEnum|string|null $navigationGroup = 'Keuangan & Penjualan';
     protected static ?string $modelLabel = 'Faktur (Invoice)';
     protected static ?string $pluralModelLabel = 'Daftar Faktur';
     protected static ?int $navigationSort = 1;
