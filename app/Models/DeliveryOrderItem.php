@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class DeliveryOrderItem extends Model
 {
-    //
+    public $timestamps = false;
+    protected $guarded = [];
 
     public function deliveryOrder() {
         return $this->belongsTo(DeliveryOrder::class);
