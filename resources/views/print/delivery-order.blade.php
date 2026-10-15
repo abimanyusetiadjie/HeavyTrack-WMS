@@ -6,69 +6,111 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             margin: 0;
-            padding: 10px;
+            padding: 15px;
+            color: #1e293b;
         }
         table {
             width: 100%;
             border-collapse: collapse;
         }
-        .header-table td {
-            vertical-align: top;
-            padding: 5px;
+        .header-box {
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
         }
-        .title {
+        .company-name {
             font-size: 16px;
             font-weight: bold;
-            text-align: center;
-            margin-bottom: 20px;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+        }
+        .company-sub {
+            font-size: 9px;
+            color: #475569;
+            margin-top: 2px;
+        }
+        .doc-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f172a;
+            text-align: right;
+        }
+        .doc-number {
+            font-size: 11px;
+            font-family: monospace;
+            color: #334155;
+            text-align: right;
+            margin-top: 2px;
+        }
+        .meta-table td {
+            vertical-align: top;
+            padding: 3px 4px;
+            font-size: 11px;
         }
         .items-table {
-            margin-top: 15px;
-        }
-        .items-table th, .items-table td {
-            border: 1px solid #000;
-            padding: 5px;
-            text-align: left;
+            margin-top: 12px;
+            margin-bottom: 12px;
         }
         .items-table th {
-            background-color: #f0f0f0;
+            background-color: #f1f5f9;
+            border: 1px solid #94a3b8;
+            padding: 6px 4px;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .items-table td {
+            border: 1px solid #cbd5e1;
+            padding: 5px 4px;
         }
         .footer-table {
-            margin-top: 30px;
+            margin-top: 20px;
             text-align: center;
         }
         .footer-table td {
             width: 33%;
-            padding-top: 50px;
+            padding-top: 45px;
+            font-size: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="title">SURAT JALAN</div>
+    <div class="header-box">
+        <table>
+            <tr>
+                <td style="width: 60%; vertical-align: top;">
+                    <div class="company-name">MITRA ABADI NUSANTARA</div>
+                    <div class="company-sub">
+                        Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
+                        Telp: (021) 8988-0000 | Email: operasional@mitraabadinusantara.co.id
+                    </div>
+                </td>
+                <td style="width: 40%; vertical-align: top;">
+                    <div class="doc-title">SURAT JALAN</div>
+                    <div class="doc-number">No: {{ $do->do_number }}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
     
-    <table class="header-table">
+    <table class="meta-table">
         <tr>
-            <td width="15%"><strong>No. DO</strong></td>
-            <td width="35%">: {{ $do->do_number }}</td>
-            <td width="15%"><strong>Tanggal</strong></td>
-            <td width="35%">: {{ \Carbon\Carbon::parse($do->delivery_date)->format('d/m/Y') }}</td>
+            <td width="15%"><strong>Tgl Pengiriman</strong></td>
+            <td width="35%">: {{ \Carbon\Carbon::parse($do->delivery_date)->format('d F Y') }}</td>
+            <td width="15%"><strong>Gudang Asal</strong></td>
+            <td width="35%">: {{ $do->warehouse->name ?? '-' }}</td>
         </tr>
         <tr>
-            <td><strong>Kepada</strong></td>
-            <td>: {{ $do->contact->company_name ?? '-' }}</td>
-            <td><strong>Gudang</strong></td>
-            <td>: {{ $do->warehouse->name ?? '-' }}</td>
-        </tr>
-        <tr>
-            <td><strong>Alamat</strong></td>
-            <td colspan="3">: {{ $do->contact->address ?? '-' }}</td>
-        </tr>
-        <tr>
-            <td><strong>Pengemudi</strong></td>
+            <td><strong>Penerima / Klien</strong></td>
+            <td>: <strong>{{ $do->contact->company_name ?? '-' }}</strong></td>
+            <td><strong>Pengemudi (Driver)</strong></td>
             <td>: {{ $do->driver_name ?? '-' }}</td>
-            <td><strong>No. Polisi</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Alamat Tujuan</strong></td>
+            <td>: {{ $do->contact->address ?? '-' }}</td>
+            <td><strong>No. Kendaraan</strong></td>
             <td>: {{ $do->vehicle_plate_number ?? '-' }}</td>
         </tr>
     </table>
@@ -76,41 +118,45 @@
     <table class="items-table">
         <thead>
             <tr>
-                <th width="5%">No</th>
-                <th width="20%">Part Number</th>
-                <th width="45%">Nama Barang</th>
-                <th width="15%">Qty</th>
-                <th width="15%">Satuan</th>
+                <th width="5%" style="text-align: center;">No</th>
+                <th width="22%">Part Number</th>
+                <th width="43%">Nama Barang / Spesifikasi</th>
+                <th width="15%" style="text-align: center;">Jumlah (Qty)</th>
+                <th width="15%" style="text-align: center;">Satuan</th>
             </tr>
         </thead>
         <tbody>
             @foreach($do->items as $index => $item)
             <tr>
-                <td>{{ $index + 1 }}</td>
-                <td>{{ $item->part->part_number ?? '-' }}</td>
-                <td>{{ $item->part->name ?? '-' }} ({{ $item->part->brand->name ?? '' }})</td>
-                <td style="text-align: center;">{{ $item->qty }}</td>
+                <td style="text-align: center;">{{ $index + 1 }}</td>
+                <td style="font-family: monospace; font-weight: bold;">{{ $item->part->part_number ?? '-' }}</td>
+                <td>{{ $item->part->name ?? '-' }} @if(isset($item->part->brand->name))<small>({{ $item->part->brand->name }})</small>@endif</td>
+                <td style="text-align: center; font-weight: bold;">{{ $item->qty }}</td>
                 <td style="text-align: center;">{{ $item->unit }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
 
-    <p style="margin-top:10px;"><strong>Catatan:</strong> {{ $do->notes ?? '-' }}</p>
+    <div style="font-size: 10px; margin-top: 5px;">
+        <strong>Catatan Pengiriman:</strong> {{ $do->notes ?? 'Barang dikirim dalam kondisi baik dan lengkap.' }}
+    </div>
 
     <table class="footer-table">
         <tr>
             <td>
                 Diterima Oleh,<br><br><br><br>
-                (___________________)
+                (___________________)<br>
+                Tgl:
             </td>
             <td>
-                Pengemudi,<br><br><br><br>
-                (___________________)
+                Pengemudi / Ekspedisi,<br><br><br><br>
+                ( {{ $do->driver_name ?: '___________________' }} )
             </td>
             <td>
                 Hormat Kami,<br><br><br><br>
-                ({{ $do->creator->name ?? 'Admin' }})
+                <strong>( {{ $do->creator->name ?? 'Petugas Gudang' }} )</strong><br>
+                Mitra Abadi Nusantara
             </td>
         </tr>
     </table>

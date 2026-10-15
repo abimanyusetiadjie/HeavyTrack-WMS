@@ -257,6 +257,11 @@ class GoodsReceiptResource extends Resource
                     ]),
             ])
             ->actions([
+                \Filament\Actions\Action::make('printLPB')
+                    ->label('Cetak LPB')
+                    ->icon('heroicon-o-printer')
+                    ->url(fn (GoodsReceipt $record): string => route('print.goods-receipt', $record))
+                    ->openUrlInNewTab(),
                 \Filament\Actions\EditAction::make()->label('Detail / Ubah'),
             ])
             ->bulkActions([

@@ -32,4 +32,11 @@ class PrintDocumentController extends Controller
         $pdf = Pdf::loadView('print.receipt', ['invoice' => $invoice])->setPaper('a5', 'landscape');
         return $pdf->stream('Kwitansi_' . str_replace('/', '_', $invoice->invoice_number) . '.pdf');
     }
+
+    public function printGoodsReceipt(\App\Models\GoodsReceipt $goodsReceipt)
+    {
+        $goodsReceipt->load(['items.part.brand', 'contact', 'warehouse', 'creator']);
+        $pdf = Pdf::loadView('print.goods-receipt', ['gr' => $goodsReceipt])->setPaper('a4', 'portrait');
+        return $pdf->stream('LPB_' . str_replace('/', '_', $goodsReceipt->receipt_number) . '.pdf');
+    }
 }

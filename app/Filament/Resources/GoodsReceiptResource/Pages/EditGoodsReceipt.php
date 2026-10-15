@@ -13,6 +13,11 @@ class EditGoodsReceipt extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('print')
+                ->label('Cetak Bukti LPB')
+                ->icon('heroicon-o-printer')
+                ->url(fn (): string => route('print.goods-receipt', $this->record))
+                ->openUrlInNewTab(),
             Actions\DeleteAction::make()->label('Hapus'),
         ];
     }

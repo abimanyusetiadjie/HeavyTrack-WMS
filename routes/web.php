@@ -19,6 +19,10 @@ Route::get('/print/receipt/{invoice}', [PrintDocumentController::class, 'printRe
     ->name('print.receipt')
     ->middleware('auth');
 
+Route::get('/print/goods-receipt/{goodsReceipt}', [PrintDocumentController::class, 'printGoodsReceipt'])
+    ->name('print.goods-receipt')
+    ->middleware('auth');
+
 Route::get('/health', function () {
     $health = ['status' => 'ok', 'timestamp' => now()->toIso8601String()];
     try {
