@@ -54,7 +54,7 @@ class DeliveryOrderResource extends Resource
     {
         return $schema
             ->schema([
-                Grid::make(3)->schema([
+                Grid::make(['default' => 1, 'lg' => 3, 'xl' => 4])->schema([
                     // Kolom Kiri (Main)
                     Group::make()->schema([
                         Section::make('Informasi Utama')
@@ -126,35 +126,35 @@ class DeliveryOrderResource extends Resource
                                                 $set('available_stock', 0);
                                             }
                                         })
-                                        ->columnSpan(4),
+                                        ->columnSpan(['default' => 12, 'md' => 5]),
                                         
                                     Forms\Components\TextInput::make('available_stock')
                                         ->label('Sisa Stok')
                                         ->disabled()
                                         ->dehydrated(false)
                                         ->numeric()
-                                        ->columnSpan(2),
+                                        ->columnSpan(['default' => 4, 'md' => 2]),
                                         
                                     Forms\Components\TextInput::make('qty')
                                         ->label('Jumlah (Qty)')
                                         ->required()
                                         ->numeric()
                                         ->minValue(1)->lte('available_stock')->validationMessages(['lte' => 'Kuantitas melebihi stok yang tersedia.'])
-                                        ->columnSpan(2),
+                                        ->columnSpan(['default' => 4, 'md' => 2]),
                                         
                                     Forms\Components\TextInput::make('unit')
                                         ->label('Satuan')
                                         ->required()
                                         ->maxLength(20)
-                                        ->columnSpan(2),
+                                        ->columnSpan(['default' => 4, 'md' => 3]),
                                         
                                     Forms\Components\TextInput::make('notes')
                                         ->label('Catatan Tambahan')
                                         ->maxLength(255)
-                                        ->columnSpan(10),
-                                ])->columns(10),
+                                        ->columnSpanFull(),
+                                ])->columns(['default' => 12, 'md' => 12]),
                         ]),
-                    ])->columnSpan(2),
+                    ])->columnSpan(['default' => 1, 'lg' => 2, 'xl' => 3]),
 
                     // Kolom Kanan (Sidebar)
                     Group::make()->schema([
@@ -200,7 +200,7 @@ class DeliveryOrderResource extends Resource
                                 Forms\Components\Hidden::make('created_by')
                                     ->default(auth()->id() ?? 1),
                             ]),
-                    ])->columnSpan(1),
+                    ])->columnSpan(['default' => 1, 'lg' => 1, 'xl' => 1]),
                 ]),
             ]);
     }

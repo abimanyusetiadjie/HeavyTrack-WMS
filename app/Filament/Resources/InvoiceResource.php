@@ -55,7 +55,7 @@ class InvoiceResource extends Resource
     {
         return $schema
             ->schema([
-                Grid::make(3)->schema([
+                Grid::make(['default' => 1, 'lg' => 3, 'xl' => 4])->schema([
                     // Kolom Kiri (Main)
                     Group::make()->schema([
                         Section::make('Informasi Utama')
@@ -148,36 +148,36 @@ class InvoiceResource extends Resource
                                                 $set('total_price', $qty * ($part->selling_price ?? 0));
                                             }
                                         })
-                                        ->columnSpan(4),
+                                        ->columnSpan(['default' => 12, 'md' => 4]),
                                         
                                     Forms\Components\Hidden::make('part_number_snapshot'),
                                     Forms\Components\Hidden::make('part_name_snapshot'),
                                     
                                     Forms\Components\TextInput::make('qty')
-                                        ->label('Jumlah (Qty)')
+                                        ->label('Qty')
                                         ->required()
                                         ->numeric()
                                         ->reactive()
                                         ->afterStateUpdated(fn ($state, callable $set, callable $get) => $set('total_price', $state * ($get('unit_price') ?? 0)))
-                                        ->columnSpan(2),
+                                        ->columnSpan(['default' => 6, 'md' => 1]),
                                         
                                     Forms\Components\TextInput::make('unit')
                                         ->label('Satuan')
                                         ->required()
-                                        ->columnSpan(2),
+                                        ->columnSpan(['default' => 6, 'md' => 1]),
                                     
                                     Forms\Components\TextInput::make('unit_price')
-                                        ->label('Harga Satuan')
+                                        ->label('Harga (Rp)')
                                         ->required()
                                         ->numeric()
                                         ->reactive()
                                         ->afterStateUpdated(fn ($state, callable $set, callable $get) => $set('total_price', $state * ($get('qty') ?? 0)))
-                                        ->columnSpan(4),
+                                        ->columnSpan(['default' => 6, 'md' => 2]),
                                         
                                     Forms\Components\TextInput::make('discount_percent')
-                                        ->label('Diskon (%)')
+                                        ->label('Diskon %')
                                         ->default(0)->numeric()
-                                        ->columnSpan(2),
+                                        ->columnSpan(['default' => 6, 'md' => 1]),
                                         
                                     Forms\Components\TextInput::make('total_price')
                                         ->label('Total (Rp)')
@@ -185,11 +185,11 @@ class InvoiceResource extends Resource
                                         ->numeric()
                                         ->disabled()
                                         ->dehydrated()
-                                        ->columnSpan(4),
-                                ])->columns(10)
+                                        ->columnSpan(['default' => 12, 'md' => 3]),
+                                ])->columns(['default' => 12, 'md' => 12])
                         ])->disabled(fn (?Invoice $record) => $record?->status === 'PAID'),
                         
-                    ])->columnSpan(2),
+                    ])->columnSpan(['default' => 1, 'lg' => 2, 'xl' => 3]),
 
                     // Kolom Kanan (Sidebar)
                     Group::make()->schema([
@@ -259,7 +259,7 @@ class InvoiceResource extends Resource
                                 Forms\Components\Hidden::make('created_by')
                                     ->default(auth()->id() ?? 1),
                             ]),
-                    ])->columnSpan(1),
+                    ])->columnSpan(['default' => 1, 'lg' => 1, 'xl' => 1]),
                 ]),
             ]);
     }
