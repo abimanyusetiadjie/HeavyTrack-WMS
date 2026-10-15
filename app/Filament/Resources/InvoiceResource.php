@@ -289,12 +289,14 @@ class InvoiceResource extends Resource
                 \Filament\Actions\Action::make('printFaktur')
                     ->label('Cetak Faktur')
                     ->icon('heroicon-o-printer')
+                    ->color('info')
                     ->url(fn (Invoice $record): string => route('print.invoice', ['invoice' => $record->id]))
                     ->openUrlInNewTab(),
                     
                 \Filament\Actions\Action::make('printKwitansi')
                     ->label('Cetak Kwitansi')
                     ->icon('heroicon-o-currency-dollar')
+                    ->color('success')
                     ->url(fn (Invoice $record): string => route('print.receipt', ['invoice' => $record->id]))
                     ->openUrlInNewTab()
                     ->visible(fn (Invoice $record): bool => $record->paid_amount > 0),

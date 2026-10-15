@@ -219,8 +219,9 @@ class DeliveryOrderResource extends Resource
             ->actions([
                 \Filament\Actions\EditAction::make()->label('Ubah'),
                 \Filament\Actions\Action::make('print')
-                    ->label('Cetak PDF')
+                    ->label('Cetak Surat Jalan')
                     ->icon('heroicon-o-printer')
+                    ->color('info')
                     ->url(fn (DeliveryOrder $record): string => route('print.delivery-order', ['deliveryOrder' => $record->id]))
                     ->openUrlInNewTab(),
             ])
