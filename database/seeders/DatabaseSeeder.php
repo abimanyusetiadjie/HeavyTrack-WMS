@@ -96,30 +96,32 @@ class DatabaseSeeder extends Seeder
         // 6. Jalankan Migrasi Data 19 Part Klien Asli
         $this->call(ClientDataSeeder::class);
 
-        // 7. Berikan Saldo Stok Awal (Initial Stock) jika belum ada saldo
-        $parts = Part::all();
-        foreach ($parts as $part) {
-            $existing = StockBalance::where('warehouse_id', $wPusat->id)->where('part_id', $part->id)->first();
-            if (!$existing) {
-                StockBalance::create([
-                    'warehouse_id' => $wPusat->id,
-                    'part_id' => $part->id,
-                    'qty_on_hand' => 50, // Saldo stok awal siap pakai
-                    'qty_reserved' => 0,
-                ]);
+        // 7. Berikan Saldo Stok Awal (Initial Stock) HANYA saat inisialisasi sistem pertama kali
+        if (StockLedger::where('reference_type', 'INITIAL_STOCK')->count() === 0) {
+            $parts = Part::all();
+            foreach ($parts as $part) {
+                $existing = StockBalance::where('warehouse_id', $wPusat->id)->where('part_id', $part->id)->first();
+                if (!$existing) {
+                    StockBalance::create([
+                        'warehouse_id' => $wPusat->id,
+                        'part_id' => $part->id,
+                        'qty_on_hand' => 50, // Saldo stok awal siap pakai
+                        'qty_reserved' => 0,
+                    ]);
 
-                StockLedger::create([
-                    'warehouse_id' => $wPusat->id,
-                    'part_id' => $part->id,
-                    'reference_type' => 'INITIAL_STOCK',
-                    'reference_id' => $part->id,
-                    'reference_number' => 'INIT/' . $part->part_number,
-                    'qty_change' => 50,
-                    'balance_before' => 0,
-                    'balance_after' => 50,
-                    'notes' => 'Saldo Stok Awal Sistem WMS Mitra Abadi Nusantara',
-                    'created_by' => $admin->id,
-                ]);
+                    StockLedger::create([
+                        'warehouse_id' => $wPusat->id,
+                        'part_id' => $part->id,
+                        'reference_type' => 'INITIAL_STOCK',
+                        'reference_id' => $part->id,
+                        'reference_number' => 'INIT/' . $part->part_number,
+                        'qty_change' => 50,
+                        'balance_before' => 0,
+                        'balance_after' => 50,
+                        'notes' => 'Saldo Stok Awal Sistem WMS Mitra Abadi Nusantara',
+                        'created_by' => $admin->id,
+                    ]);
+                }
             }
         }
     }

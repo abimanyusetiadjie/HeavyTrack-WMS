@@ -50,9 +50,11 @@ class ProductResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 \Filament\Schemas\Components\Section::make('Informasi Produk')
                     ->description('Detail nama dan kategori barang/part.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('part_number')
                             ->label('Nomor Part (Part Number)')
@@ -92,10 +94,11 @@ class ProductResource extends Resource
                             ->label('Deskripsi Lengkap')
                             ->maxLength(65535)
                             ->columnSpanFull(),
-                    ])->columns(2),
+                    ])->columns(['default' => 1, 'md' => 2]),
                     
                 \Filament\Schemas\Components\Section::make('Stok & Lokasi')
                     ->description('Pengaturan lokasi penyimpanan dan batas stok minimum.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('bin_location')
                             ->label('Nomor Rak/Lokasi Gudang')
@@ -111,27 +114,32 @@ class ProductResource extends Resource
                             ->required()
                             ->numeric()
                             ->default(5),
-                    ])->columns(3),
+                    ])->columns(['default' => 1, 'md' => 3]),
                     
                 \Filament\Schemas\Components\Section::make('Harga & Status')
-                    ->description('Harga pembelian dan harga jual standar produk.')
+                    ->description('Harga pembelian, harga jual standar, dan status aktif produk.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('cost_price')
-                            ->label('Harga Modal / Beli (Rp)')
+                            ->label('Harga Modal / Beli')
+                            ->prefix('Rp')
                             ->required()
                             ->numeric()
-                            ->default(0.00),
+                            ->default(0.00)
+                            ->visible(fn (): bool => auth()->user()?->hasRole('Admin') || auth()->user()?->hasRole('Kasir') || auth()->id() === 1),
                             
                         Forms\Components\TextInput::make('selling_price')
-                            ->label('Harga Jual / Ecer (Rp)')
+                            ->label('Harga Jual / Ecer')
+                            ->prefix('Rp')
                             ->required()
                             ->numeric()
-                            ->default(0.00),
+                            ->default(0.00)
+                            ->visible(fn (): bool => auth()->user()?->hasRole('Admin') || auth()->user()?->hasRole('Kasir') || auth()->id() === 1),
                             
                         Forms\Components\Toggle::make('is_active')
                             ->label('Status Aktif')
                             ->default(true),
-                    ])->columns(3),
+                    ])->columns(['default' => 1, 'md' => 3]),
             ]);
     }
 
@@ -241,7 +249,6 @@ class ProductResource extends Resource
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()->label('Hapus Terpilih'),
-                    \Filament\Actions\ForceDeleteBulkAction::make()->label('Hapus Permanen'),
                     \Filament\Actions\RestoreBulkAction::make()->label('Pulihkan'),
                 ])->label('Aksi Masal'),
             ]);

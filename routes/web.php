@@ -24,20 +24,14 @@ Route::get('/print/goods-receipt/{goodsReceipt}', [PrintDocumentController::clas
     ->middleware('auth');
 
 Route::get('/health', function () {
-    $health = ['status' => 'ok', 'timestamp' => now()->toIso8601String()];
+    $status = 'ok';
     try {
         \Illuminate\Support\Facades\DB::connection()->getPdo();
-        $health['database'] = 'connected';
     } catch (\Exception $e) {
-        $health['status'] = 'error';
-        $health['database'] = 'disconnected';
+        $status = 'error';
     }
-    $freeSpace = disk_free_space(storage_path());
-    $health['disk_free_gb'] = round($freeSpace / 1073741824, 2);
-    if ($freeSpace < 1073741824) {
-        $health['status'] = 'error';
-        $health['disk_space'] = 'low';
-    }
-    $health['failed_jobs'] = \Illuminate\Support\Facades\DB::table('failed_jobs')->count();
-    return response()->json($health, $health['status'] === 'ok' ? 200 : 500);
+    return response()->json([
+        'status' => $status,
+        'timestamp' => now()->toIso8601String(),
+    ], $status === 'ok' ? 200 : 500);
 });

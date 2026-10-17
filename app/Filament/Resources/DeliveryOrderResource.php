@@ -64,7 +64,7 @@ class DeliveryOrderResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->default(function () {
-                                $count = DeliveryOrder::whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
+                                $count = DeliveryOrder::withTrashed()->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
                                 return 'SJ/' . date('Ym') . '/' . str_pad($count, 4, '0', STR_PAD_LEFT);
                             })
                             ->maxLength(50),
@@ -77,16 +77,16 @@ class DeliveryOrderResource extends Resource
                         Forms\Components\Select::make('status')
                             ->label('Status Pengiriman')
                             ->options([
-                                'DRAFT' => 'DRAFT',
-                                'ISSUED' => 'DITERBITKAN',
+                                'DRAFT' => 'DRAFT (Konsep - Belum Potong Stok)',
+                                'ISSUED' => 'DITERBITKAN (Potong Stok)',
                                 'CONFIRMED' => 'DIKONFIRMASI',
                                 'SHIPPED' => 'DALAM PENGIRIMAN',
-                                'RECEIVED' => 'DITERIMA',
-                                'VOID' => 'DIBATALKAN',
+                                'RECEIVED' => 'DITERIMA PELANGGAN',
+                                'VOID' => 'DIBATALKAN (Kembalikan Stok)',
                             ])
                             ->default('ISSUED')
                             ->required()
-                            ->helperText('Status DITERBITKAN/DIKIRIM memotong kuantitas stok gudang.'),
+                            ->helperText('Status selain DRAFT akan otomatis memotong saldo stok fisik gudang.'),
                             
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang Asal')
@@ -170,13 +170,21 @@ class DeliveryOrderResource extends Resource
                                     ->disabled()
                                     ->dehydrated(false)
                                     ->numeric()
+                                    ->afterStateHydrated(function (Forms\Components\TextInput $component, callable $get) {
+                                        $partId = $get('part_id');
+                                        $warehouseId = $get('../../warehouse_id');
+                                        if ($partId && $warehouseId) {
+                                            $stock = StockBalance::where('part_id', $partId)->where('warehouse_id', $warehouseId)->first();
+                                            $component->state($stock ? $stock->qty_on_hand : 0);
+                                        }
+                                    })
                                     ->columnSpan(['default' => 4, 'md' => 2]),
                                     
                                 Forms\Components\TextInput::make('qty')
                                     ->label('Jumlah (Qty)')
                                     ->required()
                                     ->numeric()
-                                    ->minValue(1)->lte('available_stock')->validationMessages(['lte' => 'Kuantitas melebihi stok yang tersedia.'])
+                                    ->minValue(1)
                                     ->columnSpan(['default' => 4, 'md' => 2]),
                                     
                                 Forms\Components\TextInput::make('unit')
@@ -190,7 +198,7 @@ class DeliveryOrderResource extends Resource
                                     ->maxLength(255)
                                     ->columnSpanFull(),
                             ])->columns(['default' => 12, 'md' => 12]),
-                    ]),
+                    ])->disabled(fn (?DeliveryOrder $record) => $record !== null && $record->status !== 'DRAFT'),
             ]);
     }
 

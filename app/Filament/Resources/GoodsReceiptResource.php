@@ -63,7 +63,7 @@ class GoodsReceiptResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->default(function () {
-                                $count = GoodsReceipt::whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
+                                $count = GoodsReceipt::withTrashed()->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
                                 return 'LPB/' . date('Ym') . '/' . str_pad($count, 4, '0', STR_PAD_LEFT);
                             })
                             ->maxLength(50),
@@ -189,7 +189,7 @@ class GoodsReceiptResource extends Resource
                                     ->maxLength(255)
                                     ->columnSpanFull(),
                             ])->columns(['default' => 12, 'md' => 12]),
-                    ]),
+                    ])->disabled(fn (?GoodsReceipt $record) => $record !== null && $record->status !== 'DRAFT'),
             ]);
     }
 

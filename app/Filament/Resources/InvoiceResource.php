@@ -65,7 +65,7 @@ class InvoiceResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->default(function () {
-                                $count = Invoice::whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
+                                $count = Invoice::withTrashed()->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
                                 return 'INV/' . date('Ym') . '/' . str_pad($count, 4, '0', STR_PAD_LEFT);
                             })
                             ->maxLength(50),
@@ -97,7 +97,7 @@ class InvoiceResource extends Resource
                             ->relationship('deliveryOrder', 'do_number')
                             ->searchable()
                             ->reactive()
-                            ->afterStateUpdated(function ($state, callable $set) {
+                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if ($state) {
                                     $do = DeliveryOrder::with(['items.part', 'contact'])->find($state);
                                     if ($do) {
@@ -122,9 +122,12 @@ class InvoiceResource extends Resource
                                             ];
                                         }
                                         $set('items', $items);
+                                        $discount = (float) ($get('discount_amount') ?? 0);
+                                        $taxPercent = (float) ($get('tax_percent') ?? 11);
+                                        $tax = max(0, $subtotal - $discount) * ($taxPercent / 100);
                                         $set('subtotal', $subtotal);
-                                        $set('tax_amount', $subtotal * 0.11);
-                                        $set('grand_total', $subtotal + ($subtotal * 0.11));
+                                        $set('tax_amount', $tax);
+                                        $set('grand_total', max(0, $subtotal - $discount + $tax));
                                     }
                                 }
                             }),
@@ -151,6 +154,8 @@ class InvoiceResource extends Resource
                             ->label('')
                             ->addActionLabel('Tambah Tagihan Lainnya')
                             ->relationship()
+                            ->live()
+                            ->afterStateUpdated(fn (callable $set, callable $get) => self::recalculateTotalsFromRoot($set, $get))
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
@@ -161,13 +166,18 @@ class InvoiceResource extends Resource
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         if ($state) {
                                             $part = Part::find($state);
-                                            $set('part_number_snapshot', $part->part_number);
-                                            $set('part_name_snapshot', $part->name);
-                                            $set('unit', $part->unit);
-                                            $set('unit_price', $part->selling_price ?? 0);
-                                            $qty = $get('qty') ?? 1;
-                                            $set('qty', $qty);
-                                            $set('total_price', $qty * ($part->selling_price ?? 0));
+                                            if ($part) {
+                                                $set('part_number_snapshot', $part->part_number);
+                                                $set('part_name_snapshot', $part->name);
+                                                $set('unit', $part->unit);
+                                                $set('unit_price', $part->selling_price ?? 0);
+                                                $qty = (float) ($get('qty') ?? 1);
+                                                $set('qty', $qty);
+                                                $disc = (float) ($get('discount_percent') ?? 0);
+                                                $lineTotal = $qty * (float) ($part->selling_price ?? 0) * (1 - ($disc / 100));
+                                                $set('total_price', round($lineTotal, 2));
+                                                self::recalculateTotalsFromRepeaterItem($set, $get);
+                                            }
                                         }
                                     })
                                     ->columnSpan(['default' => 12, 'md' => 4]),
@@ -179,8 +189,16 @@ class InvoiceResource extends Resource
                                     ->label('Qty')
                                     ->required()
                                     ->numeric()
+                                    ->minValue(1)
+                                    ->default(1)
                                     ->reactive()
-                                    ->afterStateUpdated(fn ($state, callable $set, callable $get) => $set('total_price', $state * ($get('unit_price') ?? 0)))
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                        $qty = (float) ($state ?? 0);
+                                        $price = (float) ($get('unit_price') ?? 0);
+                                        $disc = (float) ($get('discount_percent') ?? 0);
+                                        $set('total_price', round($qty * $price * (1 - ($disc / 100)), 2));
+                                        self::recalculateTotalsFromRepeaterItem($set, $get);
+                                    })
                                     ->columnSpan(['default' => 6, 'md' => 1]),
                                     
                                 Forms\Components\TextInput::make('unit')
@@ -194,13 +212,30 @@ class InvoiceResource extends Resource
                                     ->required()
                                     ->numeric()
                                     ->reactive()
-                                    ->afterStateUpdated(fn ($state, callable $set, callable $get) => $set('total_price', $state * ($get('qty') ?? 0)))
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                        $qty = (float) ($get('qty') ?? 0);
+                                        $price = (float) ($state ?? 0);
+                                        $disc = (float) ($get('discount_percent') ?? 0);
+                                        $set('total_price', round($qty * $price * (1 - ($disc / 100)), 2));
+                                        self::recalculateTotalsFromRepeaterItem($set, $get);
+                                    })
                                     ->columnSpan(['default' => 6, 'md' => 2]),
                                     
                                 Forms\Components\TextInput::make('discount_percent')
                                     ->label('Diskon')
                                     ->suffix('%')
-                                    ->default(0)->numeric()
+                                    ->default(0)
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->maxValue(100)
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                        $qty = (float) ($get('qty') ?? 0);
+                                        $price = (float) ($get('unit_price') ?? 0);
+                                        $disc = (float) ($state ?? 0);
+                                        $set('total_price', round($qty * $price * (1 - ($disc / 100)), 2));
+                                        self::recalculateTotalsFromRepeaterItem($set, $get);
+                                    })
                                     ->columnSpan(['default' => 6, 'md' => 1]),
                                     
                                 Forms\Components\TextInput::make('total_price')
@@ -311,6 +346,7 @@ class InvoiceResource extends Resource
                     ->label('Status')
                     ->badge()
                     ->colors([
+                        'info' => 'DRAFT',
                         'danger' => 'UNPAID',
                         'warning' => 'PARTIALLY_PAID',
                         'success' => 'PAID',
@@ -355,8 +391,12 @@ class InvoiceResource extends Resource
                         Forms\Components\Textarea::make('notes')->label('Catatan'),
                     ])
                     ->action(function (Invoice $record, array $data): void {
+                        $nextPaymentSeq = Payment::whereMonth('created_at', date('m'))
+                            ->whereYear('created_at', date('Y'))
+                            ->count() + 1;
+
                         Payment::create([
-                            'receipt_number' => 'BKM/' . date('Ym') . '/' . rand(1000, 9999),
+                            'receipt_number' => 'BKM/' . date('Ym') . '/' . str_pad($nextPaymentSeq, 4, '0', STR_PAD_LEFT) . '-' . substr(uniqid(), -3),
                             'invoice_id' => $record->id,
                             'payment_date' => $data['payment_date'],
                             'payment_method' => $data['payment_method'],
@@ -384,6 +424,50 @@ class InvoiceResource extends Resource
                     \Filament\Actions\DeleteBulkAction::make()->label('Hapus Terpilih'),
                 ])->label('Aksi Masal'),
             ]);
+    }
+
+    protected static function recalculateTotalsFromRoot(callable $set, callable $get): void
+    {
+        $items = $get('items') ?? [];
+        $subtotal = 0;
+
+        foreach ($items as $item) {
+            $qty = (float) ($item['qty'] ?? 0);
+            $price = (float) ($item['unit_price'] ?? 0);
+            $disc = (float) ($item['discount_percent'] ?? 0);
+            $subtotal += round($qty * $price * (1 - ($disc / 100)), 2);
+        }
+
+        $discount = (float) ($get('discount_amount') ?? 0);
+        $taxPercent = (float) ($get('tax_percent') ?? 11);
+        $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100), 2);
+        $grandTotal = round(max(0, $subtotal - $discount + $tax), 2);
+
+        $set('subtotal', $subtotal);
+        $set('tax_amount', $tax);
+        $set('grand_total', $grandTotal);
+    }
+
+    protected static function recalculateTotalsFromRepeaterItem(callable $set, callable $get): void
+    {
+        $items = $get('../../items') ?? [];
+        $subtotal = 0;
+
+        foreach ($items as $item) {
+            $qty = (float) ($item['qty'] ?? 0);
+            $price = (float) ($item['unit_price'] ?? 0);
+            $disc = (float) ($item['discount_percent'] ?? 0);
+            $subtotal += round($qty * $price * (1 - ($disc / 100)), 2);
+        }
+
+        $discount = (float) ($get('../../discount_amount') ?? 0);
+        $taxPercent = (float) ($get('../../tax_percent') ?? 11);
+        $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100), 2);
+        $grandTotal = round(max(0, $subtotal - $discount + $tax), 2);
+
+        $set('../../subtotal', $subtotal);
+        $set('../../tax_amount', $tax);
+        $set('../../grand_total', $grandTotal);
     }
 
     public static function getPages(): array

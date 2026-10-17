@@ -23,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
     {
         \Illuminate\Database\Eloquent\Model::unguard();
         // Force HTTPS in production to prevent mixed-content blocked assets (CSS/JS)
-        if (env('APP_ENV') !== 'local') {
+        if (config('app.env') !== 'local') {
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 

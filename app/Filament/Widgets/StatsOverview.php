@@ -21,10 +21,7 @@ class StatsOverview extends BaseWidget
 
         $pendingDO = DeliveryOrder::whereIn('status', ['DRAFT', 'ISSUED'])->count();
 
-        $unpaidAmount = Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->sum('grand_total') 
-            - Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->sum('paid_amount');
-
-        return [
+        $stats = [
             Stat::make('Katalog Produk Aktif', Part::count() . ' Varian')
                 ->description('Total stok: ' . number_format($totalStockUnits, 0, ',', '.') . ' PCS')
                 ->descriptionIcon('heroicon-m-cube')
@@ -39,11 +36,19 @@ class StatsOverview extends BaseWidget
                 ->description('Menunggu verifikasi pengiriman')
                 ->descriptionIcon('heroicon-m-truck')
                 ->color('warning'),
+        ];
 
-            Stat::make('Piutang Belum Lunas', 'Rp ' . number_format($unpaidAmount, 0, ',', '.'))
+        $user = auth()->user();
+        if ($user && ($user->hasRole('Admin') || $user->hasRole('Kasir') || $user->id === 1)) {
+            $unpaidAmount = Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->sum('grand_total') 
+                - Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->sum('paid_amount');
+
+            $stats[] = Stat::make('Piutang Belum Lunas', 'Rp ' . number_format($unpaidAmount, 0, ',', '.'))
                 ->description('Tagihan faktur berjalan')
                 ->descriptionIcon('heroicon-m-currency-dollar')
-                ->color($unpaidAmount > 0 ? 'danger' : 'success'),
-        ];
+                ->color($unpaidAmount > 0 ? 'danger' : 'success');
+        }
+
+        return $stats;
     }
 }
