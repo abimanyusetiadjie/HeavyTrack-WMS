@@ -53,9 +53,11 @@ class DeliveryOrderResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Section::make('Informasi Dokumen Surat Jalan')
                     ->description('Detail surat jalan, gudang pengirim, dan tujuan pengiriman.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('do_number')
                             ->label('Nomor Surat Jalan')
@@ -135,6 +137,7 @@ class DeliveryOrderResource extends Resource
 
                 Section::make('Daftar Barang (Item)')
                     ->description('Daftar sparepart yang dikeluarkan dari gudang untuk dikirim.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\Repeater::make('items')
                             ->label('')

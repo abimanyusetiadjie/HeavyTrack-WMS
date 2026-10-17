@@ -54,9 +54,11 @@ class InvoiceResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Section::make('Informasi Faktur & Pelanggan')
                     ->description('Detail invoice, pelanggan yang ditagih, dan tanggal jatuh tempo.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('invoice_number')
                             ->label('Nomor Faktur')
@@ -81,7 +83,7 @@ class InvoiceResource extends Resource
                         Forms\Components\Select::make('status')
                             ->label('Status Pembayaran')
                             ->options([
-                                'DRAFT' => 'DRAFT',
+                                'DRAFT' => 'DRAFT (Konsep)',
                                 'UNPAID' => 'BELUM DIBAYAR',
                                 'PARTIALLY_PAID' => 'DIBAYAR SEBAGIAN',
                                 'PAID' => 'LUNAS',
@@ -143,6 +145,7 @@ class InvoiceResource extends Resource
 
                 Section::make('Rincian Tagihan (Items)')
                     ->description('Daftar barang dan harga jual yang ditagihkan kepada pelanggan.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\Repeater::make('items')
                             ->label('')
@@ -150,7 +153,7 @@ class InvoiceResource extends Resource
                             ->relationship()
                             ->schema([
                                 Forms\Components\Select::make('part_id')
-                                    ->label('Pilih Produk')
+                                    ->label('Pilih Produk / Sparepart')
                                     ->options(Part::query()->pluck('name', 'id'))
                                     ->required()
                                     ->searchable()
@@ -186,7 +189,8 @@ class InvoiceResource extends Resource
                                     ->columnSpan(['default' => 6, 'md' => 1]),
                                 
                                 Forms\Components\TextInput::make('unit_price')
-                                    ->label('Harga (Rp)')
+                                    ->label('Harga Satuan')
+                                    ->prefix('Rp')
                                     ->required()
                                     ->numeric()
                                     ->reactive()
@@ -194,12 +198,14 @@ class InvoiceResource extends Resource
                                     ->columnSpan(['default' => 6, 'md' => 2]),
                                     
                                 Forms\Components\TextInput::make('discount_percent')
-                                    ->label('Diskon %')
+                                    ->label('Diskon')
+                                    ->suffix('%')
                                     ->default(0)->numeric()
                                     ->columnSpan(['default' => 6, 'md' => 1]),
                                     
                                 Forms\Components\TextInput::make('total_price')
-                                    ->label('Total (Rp)')
+                                    ->label('Total Harga')
+                                    ->prefix('Rp')
                                     ->required()
                                     ->numeric()
                                     ->disabled()
@@ -210,9 +216,11 @@ class InvoiceResource extends Resource
 
                 Section::make('Total & Kalkulasi Akhir')
                     ->description('Ringkasan nilai transaksi, potongan, pajak PPN, dan grand total.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('subtotal')
-                            ->label('Subtotal (Rp)')
+                            ->label('Subtotal')
+                            ->prefix('Rp')
                             ->required()
                             ->numeric()
                             ->default(0)
@@ -225,10 +233,11 @@ class InvoiceResource extends Resource
                                 $set('tax_amount', $tax);
                                 $set('grand_total', max(0, $subtotal - $discount + $tax));
                             })
-                            ->columnSpan(['default' => 12, 'sm' => 6, 'md' => 2]),
+                            ->columnSpan(['default' => 12, 'sm' => 6, 'md' => 3]),
                             
                         Forms\Components\TextInput::make('discount_amount')
-                            ->label('Diskon Tambahan (Rp)')
+                            ->label('Potongan / Diskon')
+                            ->prefix('Rp')
                             ->numeric()
                             ->default(0)
                             ->reactive()
@@ -240,10 +249,11 @@ class InvoiceResource extends Resource
                                 $set('tax_amount', $tax);
                                 $set('grand_total', max(0, $subtotal - $discount + $tax));
                             })
-                            ->columnSpan(['default' => 12, 'sm' => 6, 'md' => 2]),
+                            ->columnSpan(['default' => 12, 'sm' => 6, 'md' => 3]),
 
                         Forms\Components\TextInput::make('tax_percent')
-                            ->label('PPN (%)')
+                            ->label('PPN')
+                            ->suffix('%')
                             ->numeric()
                             ->default(11)
                             ->reactive()
@@ -254,29 +264,32 @@ class InvoiceResource extends Resource
                                 $set('tax_amount', $tax);
                                 $set('grand_total', max(0, $subtotal - $discount + $tax));
                             })
-                            ->columnSpan(['default' => 6, 'sm' => 3, 'md' => 1]),
+                            ->columnSpan(['default' => 6, 'sm' => 3, 'md' => 2]),
 
                         Forms\Components\TextInput::make('tax_amount')
-                            ->label('Pajak PPN (Rp)')
+                            ->label('Nilai PPN (Pajak)')
+                            ->prefix('Rp')
                             ->numeric()
                             ->default(0)
-                            ->columnSpan(['default' => 6, 'sm' => 3, 'md' => 2]),
+                            ->columnSpan(['default' => 6, 'sm' => 3, 'md' => 4]),
                             
                         Forms\Components\TextInput::make('grand_total')
-                            ->label('GRAND TOTAL (Rp)')
+                            ->label('TOTAL TAGIHAN (GRAND TOTAL)')
+                            ->prefix('Rp')
                             ->required()
                             ->numeric()
                             ->default(0)
-                            ->extraAttributes(['class' => 'text-xl font-bold text-amber-600'])
-                            ->columnSpan(['default' => 12, 'sm' => 6, 'md' => 3]),
+                            ->extraAttributes(['class' => 'text-xl font-extrabold text-amber-600'])
+                            ->columnSpan(['default' => 12, 'md' => 8]),
                             
                         Forms\Components\TextInput::make('paid_amount')
-                            ->label('Sisa / Terbayar (Rp)')
+                            ->label('Sisa / Terbayar')
+                            ->prefix('Rp')
                             ->disabled()
                             ->dehydrated(false)
                             ->numeric()
                             ->default(0)
-                            ->columnSpan(['default' => 12, 'sm' => 6, 'md' => 2]),
+                            ->columnSpan(['default' => 12, 'md' => 4]),
 
                         Forms\Components\Hidden::make('created_by')
                             ->default(auth()->id() ?? 1),

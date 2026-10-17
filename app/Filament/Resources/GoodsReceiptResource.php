@@ -52,9 +52,11 @@ class GoodsReceiptResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Section::make('Informasi Dokumen Penerimaan')
                     ->description('Detail surat jalan supplier, gudang tujuan, dan status penerimaan.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('receipt_number')
                             ->label('Nomor Bukti Masuk (LPB)')
@@ -129,6 +131,7 @@ class GoodsReceiptResource extends Resource
 
                 Section::make('Daftar Barang Masuk')
                     ->description('Rincian sparepart yang diterima masuk ke gudang.')
+                    ->columnSpanFull()
                     ->schema([
                         Forms\Components\Repeater::make('items')
                             ->label('')
@@ -136,7 +139,7 @@ class GoodsReceiptResource extends Resource
                             ->relationship()
                             ->schema([
                                 Forms\Components\Select::make('part_id')
-                                    ->label('Pilih Produk/Part')
+                                    ->label('Pilih Produk / Sparepart')
                                     ->options(Part::query()->pluck('name', 'id'))
                                     ->required()
                                     ->searchable()
@@ -169,7 +172,8 @@ class GoodsReceiptResource extends Resource
                                     ->columnSpan(['default' => 6, 'md' => 2]),
 
                                 Forms\Components\TextInput::make('unit_cost')
-                                    ->label('Harga Modal / Beli (Rp)')
+                                    ->label('Harga Modal / Beli')
+                                    ->prefix('Rp')
                                     ->numeric()
                                     ->default(0)
                                     ->columnSpan(['default' => 6, 'md' => 2]),
