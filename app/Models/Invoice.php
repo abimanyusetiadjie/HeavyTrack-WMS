@@ -10,7 +10,14 @@ class Invoice extends Model
 {
     use SoftDeletes;
 
-    //
+    protected $casts = [
+        'subtotal' => 'float',
+        'discount_amount' => 'float',
+        'tax_percent' => 'float',
+        'tax_amount' => 'float',
+        'grand_total' => 'float',
+        'paid_amount' => 'float',
+    ];
 
     public function deliveryOrder() {
         return $this->belongsTo(DeliveryOrder::class);

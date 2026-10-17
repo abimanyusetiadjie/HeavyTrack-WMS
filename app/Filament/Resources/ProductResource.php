@@ -123,17 +123,21 @@ class ProductResource extends Resource
                         Forms\Components\TextInput::make('cost_price')
                             ->label('Harga Modal / Beli')
                             ->prefix('Rp')
+                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                            ->stripCharacters('.')
                             ->required()
                             ->numeric()
-                            ->default(0.00)
+                            ->default(0)
                             ->visible(fn (): bool => auth()->user()?->hasRole('Admin') || auth()->user()?->hasRole('Kasir') || auth()->id() === 1),
                             
                         Forms\Components\TextInput::make('selling_price')
                             ->label('Harga Jual / Ecer')
                             ->prefix('Rp')
+                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                            ->stripCharacters('.')
                             ->required()
                             ->numeric()
-                            ->default(0.00)
+                            ->default(0)
                             ->visible(fn (): bool => auth()->user()?->hasRole('Admin') || auth()->user()?->hasRole('Kasir') || auth()->id() === 1),
                             
                         Forms\Components\Toggle::make('is_active')

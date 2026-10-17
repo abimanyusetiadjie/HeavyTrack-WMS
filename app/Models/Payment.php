@@ -10,7 +10,9 @@ class Payment extends Model
 {
     use SoftDeletes;
 
-    //
+    protected $casts = [
+        'amount' => 'float',
+    ];
 
     public function invoice() {
         return $this->belongsTo(Invoice::class);

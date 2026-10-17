@@ -10,6 +10,12 @@ class InvoiceItem extends Model
     public $timestamps = false;
     protected $guarded = [];
 
+    protected $casts = [
+        'unit_price' => 'float',
+        'discount_percent' => 'float',
+        'total_price' => 'float',
+    ];
+
     public function invoice() {
         return $this->belongsTo(Invoice::class);
     }

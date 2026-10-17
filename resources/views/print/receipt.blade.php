@@ -41,7 +41,7 @@
     </table>
 
     <div class="amount-box">
-        Rp {{ number_format($invoice->payments->sum('amount'), 2, ',', '.') }}
+        Rp {{ number_format($invoice->payments->sum('amount'), 0, ',', '.') }}
     </div>
 
     <div class="signatures">

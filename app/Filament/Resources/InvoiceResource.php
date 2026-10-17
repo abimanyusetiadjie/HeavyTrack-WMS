@@ -106,8 +106,8 @@ class InvoiceResource extends Resource
                                         $items = [];
                                         $subtotal = 0;
                                         foreach ($do->items as $item) {
-                                            $price = $item->part->selling_price ?? 0;
-                                            $total = $item->qty * $price;
+                                            $price = round((float) ($item->part->selling_price ?? 0));
+                                            $total = round($item->qty * $price);
                                             $subtotal += $total;
                                             
                                             $items[] = [
@@ -116,18 +116,18 @@ class InvoiceResource extends Resource
                                                 'part_name_snapshot' => $item->part->name,
                                                 'qty' => $item->qty,
                                                 'unit' => $item->unit,
-                                                'unit_price' => $price,
-                                                'total_price' => $total,
+                                                'unit_price' => self::formatMoney($price),
+                                                'total_price' => self::formatMoney($total),
                                                 'discount_percent' => 0
                                             ];
                                         }
                                         $set('items', $items);
-                                        $discount = (float) ($get('discount_amount') ?? 0);
+                                        $discount = self::parseMoney($get('discount_amount'));
                                         $taxPercent = (float) ($get('tax_percent') ?? 11);
-                                        $tax = max(0, $subtotal - $discount) * ($taxPercent / 100);
-                                        $set('subtotal', $subtotal);
-                                        $set('tax_amount', $tax);
-                                        $set('grand_total', max(0, $subtotal - $discount + $tax));
+                                        $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
+                                        $set('subtotal', self::formatMoney($subtotal));
+                                        $set('tax_amount', self::formatMoney($tax));
+                                        $set('grand_total', self::formatMoney(max(0, $subtotal - $discount + $tax)));
                                     }
                                 }
                             }),
@@ -167,15 +167,16 @@ class InvoiceResource extends Resource
                                         if ($state) {
                                             $part = Part::find($state);
                                             if ($part) {
+                                                $price = round((float) ($part->selling_price ?? 0));
                                                 $set('part_number_snapshot', $part->part_number);
                                                 $set('part_name_snapshot', $part->name);
                                                 $set('unit', $part->unit);
-                                                $set('unit_price', $part->selling_price ?? 0);
+                                                $set('unit_price', self::formatMoney($price));
                                                 $qty = (float) ($get('qty') ?? 1);
                                                 $set('qty', $qty);
                                                 $disc = (float) ($get('discount_percent') ?? 0);
-                                                $lineTotal = $qty * (float) ($part->selling_price ?? 0) * (1 - ($disc / 100));
-                                                $set('total_price', round($lineTotal, 2));
+                                                $lineTotal = round($qty * $price * (1 - ($disc / 100)));
+                                                $set('total_price', self::formatMoney($lineTotal));
                                                 self::recalculateTotalsFromRepeaterItem($set, $get);
                                             }
                                         }
@@ -191,12 +192,12 @@ class InvoiceResource extends Resource
                                     ->numeric()
                                     ->minValue(1)
                                     ->default(1)
-                                    ->reactive()
+                                    ->live(debounce: 400)
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         $qty = (float) ($state ?? 0);
-                                        $price = (float) ($get('unit_price') ?? 0);
+                                        $price = self::parseMoney($get('unit_price'));
                                         $disc = (float) ($get('discount_percent') ?? 0);
-                                        $set('total_price', round($qty * $price * (1 - ($disc / 100)), 2));
+                                        $set('total_price', self::formatMoney(round($qty * $price * (1 - ($disc / 100)))));
                                         self::recalculateTotalsFromRepeaterItem($set, $get);
                                     })
                                     ->columnSpan(['default' => 6, 'md' => 1]),
@@ -209,14 +210,16 @@ class InvoiceResource extends Resource
                                 Forms\Components\TextInput::make('unit_price')
                                     ->label('Harga Satuan')
                                     ->prefix('Rp')
+                                    ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                                    ->stripCharacters('.')
                                     ->required()
                                     ->numeric()
-                                    ->reactive()
+                                    ->live(debounce: 400)
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         $qty = (float) ($get('qty') ?? 0);
-                                        $price = (float) ($state ?? 0);
+                                        $price = self::parseMoney($state);
                                         $disc = (float) ($get('discount_percent') ?? 0);
-                                        $set('total_price', round($qty * $price * (1 - ($disc / 100)), 2));
+                                        $set('total_price', self::formatMoney(round($qty * $price * (1 - ($disc / 100)))));
                                         self::recalculateTotalsFromRepeaterItem($set, $get);
                                     })
                                     ->columnSpan(['default' => 6, 'md' => 2]),
@@ -228,12 +231,12 @@ class InvoiceResource extends Resource
                                     ->numeric()
                                     ->minValue(0)
                                     ->maxValue(100)
-                                    ->reactive()
+                                    ->live(debounce: 400)
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         $qty = (float) ($get('qty') ?? 0);
-                                        $price = (float) ($get('unit_price') ?? 0);
+                                        $price = self::parseMoney($get('unit_price'));
                                         $disc = (float) ($state ?? 0);
-                                        $set('total_price', round($qty * $price * (1 - ($disc / 100)), 2));
+                                        $set('total_price', self::formatMoney(round($qty * $price * (1 - ($disc / 100)))));
                                         self::recalculateTotalsFromRepeaterItem($set, $get);
                                     })
                                     ->columnSpan(['default' => 6, 'md' => 1]),
@@ -241,6 +244,8 @@ class InvoiceResource extends Resource
                                 Forms\Components\TextInput::make('total_price')
                                     ->label('Total Harga')
                                     ->prefix('Rp')
+                                    ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                                    ->stripCharacters('.')
                                     ->required()
                                     ->numeric()
                                     ->disabled()
@@ -256,33 +261,37 @@ class InvoiceResource extends Resource
                         Forms\Components\TextInput::make('subtotal')
                             ->label('Subtotal')
                             ->prefix('Rp')
+                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                            ->stripCharacters('.')
                             ->required()
                             ->numeric()
                             ->default(0)
-                            ->reactive()
+                            ->live(debounce: 400)
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                $subtotal = (float)$state;
-                                $taxPercent = (float)($get('tax_percent') ?? 11);
-                                $discount = (float)($get('discount_amount') ?? 0);
-                                $tax = max(0, $subtotal - $discount) * ($taxPercent / 100);
-                                $set('tax_amount', $tax);
-                                $set('grand_total', max(0, $subtotal - $discount + $tax));
+                                $subtotal = self::parseMoney($state);
+                                $taxPercent = (float) ($get('tax_percent') ?? 11);
+                                $discount = self::parseMoney($get('discount_amount'));
+                                $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
+                                $set('tax_amount', self::formatMoney($tax));
+                                $set('grand_total', self::formatMoney(max(0, $subtotal - $discount + $tax)));
                             })
                             ->columnSpan(['default' => 12, 'sm' => 6, 'md' => 3]),
                             
                         Forms\Components\TextInput::make('discount_amount')
                             ->label('Potongan / Diskon')
                             ->prefix('Rp')
+                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                            ->stripCharacters('.')
                             ->numeric()
                             ->default(0)
-                            ->reactive()
+                            ->live(debounce: 400)
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                $subtotal = (float)($get('subtotal') ?? 0);
-                                $taxPercent = (float)($get('tax_percent') ?? 11);
-                                $discount = (float)$state;
-                                $tax = max(0, $subtotal - $discount) * ($taxPercent / 100);
-                                $set('tax_amount', $tax);
-                                $set('grand_total', max(0, $subtotal - $discount + $tax));
+                                $subtotal = self::parseMoney($get('subtotal'));
+                                $taxPercent = (float) ($get('tax_percent') ?? 11);
+                                $discount = self::parseMoney($state);
+                                $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
+                                $set('tax_amount', self::formatMoney($tax));
+                                $set('grand_total', self::formatMoney(max(0, $subtotal - $discount + $tax)));
                             })
                             ->columnSpan(['default' => 12, 'sm' => 6, 'md' => 3]),
 
@@ -291,19 +300,21 @@ class InvoiceResource extends Resource
                             ->suffix('%')
                             ->numeric()
                             ->default(11)
-                            ->reactive()
+                            ->live(debounce: 400)
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                $subtotal = (float)($get('subtotal') ?? 0);
-                                $discount = (float)($get('discount_amount') ?? 0);
-                                $tax = max(0, $subtotal - $discount) * ((float)$state / 100);
-                                $set('tax_amount', $tax);
-                                $set('grand_total', max(0, $subtotal - $discount + $tax));
+                                $subtotal = self::parseMoney($get('subtotal'));
+                                $discount = self::parseMoney($get('discount_amount'));
+                                $tax = round(max(0, $subtotal - $discount) * ((float) ($state ?? 0) / 100));
+                                $set('tax_amount', self::formatMoney($tax));
+                                $set('grand_total', self::formatMoney(max(0, $subtotal - $discount + $tax)));
                             })
                             ->columnSpan(['default' => 6, 'sm' => 3, 'md' => 2]),
 
                         Forms\Components\TextInput::make('tax_amount')
                             ->label('Nilai PPN (Pajak)')
                             ->prefix('Rp')
+                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                            ->stripCharacters('.')
                             ->numeric()
                             ->default(0)
                             ->columnSpan(['default' => 6, 'sm' => 3, 'md' => 4]),
@@ -311,6 +322,8 @@ class InvoiceResource extends Resource
                         Forms\Components\TextInput::make('grand_total')
                             ->label('TOTAL TAGIHAN (GRAND TOTAL)')
                             ->prefix('Rp')
+                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                            ->stripCharacters('.')
                             ->required()
                             ->numeric()
                             ->default(0)
@@ -320,6 +333,8 @@ class InvoiceResource extends Resource
                         Forms\Components\TextInput::make('paid_amount')
                             ->label('Sisa / Terbayar')
                             ->prefix('Rp')
+                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                            ->stripCharacters('.')
                             ->disabled()
                             ->dehydrated(false)
                             ->numeric()
@@ -384,9 +399,13 @@ class InvoiceResource extends Resource
                             ->options(['CASH' => 'Tunai (Cash)', 'BANK_TRANSFER' => 'Transfer Bank', 'GIRO' => 'Cek / Giro'])
                             ->required(),
                         Forms\Components\TextInput::make('amount')
-                            ->label('Nominal (Rp)')
-                            ->required()->numeric()
-                            ->default(fn (Invoice $record) => $record->grand_total - $record->paid_amount),
+                            ->label('Nominal Pembayaran')
+                            ->prefix('Rp')
+                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                            ->stripCharacters('.')
+                            ->required()
+                            ->numeric()
+                            ->default(fn (Invoice $record) => self::formatMoney(max(0, $record->grand_total - $record->paid_amount))),
                         Forms\Components\TextInput::make('reference_number')->label('No Referensi/Bukti'),
                         Forms\Components\Textarea::make('notes')->label('Catatan'),
                     ])
@@ -400,7 +419,7 @@ class InvoiceResource extends Resource
                             'invoice_id' => $record->id,
                             'payment_date' => $data['payment_date'],
                             'payment_method' => $data['payment_method'],
-                            'amount' => $data['amount'],
+                            'amount' => self::parseMoney($data['amount']),
                             'reference_number' => $data['reference_number'] ?? null,
                             'notes' => $data['notes'] ?? null,
                             'created_by' => auth()->id() ?? 1,
@@ -426,6 +445,24 @@ class InvoiceResource extends Resource
             ]);
     }
 
+    protected static function parseMoney(mixed $value): float
+    {
+        if ($value === null || $value === '') {
+            return 0.0;
+        }
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+        $cleaned = str_replace('.', '', (string) $value);
+        $cleaned = str_replace(',', '.', $cleaned);
+        return (float) $cleaned;
+    }
+
+    protected static function formatMoney(float | int $value): string
+    {
+        return number_format(round($value), 0, ',', '.');
+    }
+
     protected static function recalculateTotalsFromRoot(callable $set, callable $get): void
     {
         $items = $get('items') ?? [];
@@ -433,19 +470,19 @@ class InvoiceResource extends Resource
 
         foreach ($items as $item) {
             $qty = (float) ($item['qty'] ?? 0);
-            $price = (float) ($item['unit_price'] ?? 0);
+            $price = self::parseMoney($item['unit_price'] ?? 0);
             $disc = (float) ($item['discount_percent'] ?? 0);
-            $subtotal += round($qty * $price * (1 - ($disc / 100)), 2);
+            $subtotal += round($qty * $price * (1 - ($disc / 100)));
         }
 
-        $discount = (float) ($get('discount_amount') ?? 0);
+        $discount = self::parseMoney($get('discount_amount'));
         $taxPercent = (float) ($get('tax_percent') ?? 11);
-        $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100), 2);
-        $grandTotal = round(max(0, $subtotal - $discount + $tax), 2);
+        $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
+        $grandTotal = round(max(0, $subtotal - $discount + $tax));
 
-        $set('subtotal', $subtotal);
-        $set('tax_amount', $tax);
-        $set('grand_total', $grandTotal);
+        $set('subtotal', self::formatMoney($subtotal));
+        $set('tax_amount', self::formatMoney($tax));
+        $set('grand_total', self::formatMoney($grandTotal));
     }
 
     protected static function recalculateTotalsFromRepeaterItem(callable $set, callable $get): void
@@ -455,19 +492,19 @@ class InvoiceResource extends Resource
 
         foreach ($items as $item) {
             $qty = (float) ($item['qty'] ?? 0);
-            $price = (float) ($item['unit_price'] ?? 0);
+            $price = self::parseMoney($item['unit_price'] ?? 0);
             $disc = (float) ($item['discount_percent'] ?? 0);
-            $subtotal += round($qty * $price * (1 - ($disc / 100)), 2);
+            $subtotal += round($qty * $price * (1 - ($disc / 100)));
         }
 
-        $discount = (float) ($get('../../discount_amount') ?? 0);
+        $discount = self::parseMoney($get('../../discount_amount'));
         $taxPercent = (float) ($get('../../tax_percent') ?? 11);
-        $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100), 2);
-        $grandTotal = round(max(0, $subtotal - $discount + $tax), 2);
+        $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
+        $grandTotal = round(max(0, $subtotal - $discount + $tax));
 
-        $set('../../subtotal', $subtotal);
-        $set('../../tax_amount', $tax);
-        $set('../../grand_total', $grandTotal);
+        $set('../../subtotal', self::formatMoney($subtotal));
+        $set('../../tax_amount', self::formatMoney($tax));
+        $set('../../grand_total', self::formatMoney($grandTotal));
     }
 
     public static function getPages(): array

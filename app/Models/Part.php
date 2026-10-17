@@ -10,7 +10,11 @@ class Part extends Model
 {
     use SoftDeletes;
 
-    //
+    protected $casts = [
+        'cost_price' => 'float',
+        'selling_price' => 'float',
+        'is_active' => 'boolean',
+    ];
 
     public function brand() {
         return $this->belongsTo(Brand::class);

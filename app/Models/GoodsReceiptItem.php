@@ -9,6 +9,10 @@ class GoodsReceiptItem extends Model
     public $timestamps = false;
     protected $guarded = [];
 
+    protected $casts = [
+        'unit_cost' => 'float',
+    ];
+
     public function goodsReceipt()
     {
         return $this->belongsTo(GoodsReceipt::class);

@@ -149,7 +149,7 @@ class GoodsReceiptResource extends Resource
                                             $part = Part::find($state);
                                             if ($part) {
                                                 $set('unit', $part->unit ?? 'PCS');
-                                                $set('unit_cost', $part->cost_price ?? 0);
+                                                $set('unit_cost', number_format(round((float) ($part->cost_price ?? 0)), 0, ',', '.'));
                                                 $set('bin_location_snapshot', $part->bin_location);
                                             }
                                         }
@@ -174,6 +174,8 @@ class GoodsReceiptResource extends Resource
                                 Forms\Components\TextInput::make('unit_cost')
                                     ->label('Harga Modal / Beli')
                                     ->prefix('Rp')
+                                    ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
+                                    ->stripCharacters('.')
                                     ->numeric()
                                     ->default(0)
                                     ->columnSpan(['default' => 6, 'md' => 2]),
