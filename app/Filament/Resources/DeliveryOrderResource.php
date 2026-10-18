@@ -208,29 +208,47 @@ class DeliveryOrderResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('do_number')->label('Nomor SJ')->searchable(),
+                Tables\Columns\TextColumn::make('do_number')->label('Nomor SJ')->searchable()->fontFamily('mono')->weight('bold'),
                 Tables\Columns\TextColumn::make('delivery_date')->label('Tgl Kirim')->date('d M Y')->sortable(),
                 Tables\Columns\TextColumn::make('warehouse.name')->label('Gudang Asal'),
                 Tables\Columns\TextColumn::make('contact.company_name')->label('Tujuan / Pelanggan'),
                 Tables\Columns\TextColumn::make('status')->label('Status')->badge(),
+                Tables\Columns\TextColumn::make('invoice.invoice_number')
+                    ->label('Faktur Penjualan')
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'success' : 'gray')
+                    ->formatStateUsing(fn ($state) => $state ?: 'Belum Ada Faktur')
+                    ->url(fn (DeliveryOrder $record) => $record->invoice ? route('filament.admin.resources.invoices.edit', ['record' => $record->invoice->id]) : null)
+                    ->openUrlInNewTab(),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
             ])
             ->actions([
-                \Filament\Actions\EditAction::make()->label('Ubah'),
+                \Filament\Actions\Action::make('printInvoice')
+                    ->label(fn (DeliveryOrder $record) => $record->invoice ? 'Cetak Faktur' : 'Terbitkan & Cetak Faktur')
+                    ->icon('heroicon-o-document-currency-dollar')
+                    ->color(fn (DeliveryOrder $record) => $record->invoice ? 'success' : 'warning')
+                    ->url(fn (DeliveryOrder $record): string => route('print.delivery-order.invoice', ['deliveryOrder' => $record->id]))
+                    ->openUrlInNewTab(),
                 \Filament\Actions\Action::make('print')
-                    ->label('Cetak Surat Jalan')
+                    ->label('Cetak SJ')
                     ->icon('heroicon-o-printer')
                     ->color('info')
                     ->url(fn (DeliveryOrder $record): string => route('print.delivery-order', ['deliveryOrder' => $record->id]))
                     ->openUrlInNewTab(),
+                \Filament\Actions\EditAction::make()->label('Ubah'),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()->label('Hapus Terpilih'),
                 ])->label('Aksi Masal'),
             ]);
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->with(['warehouse', 'contact', 'invoice']);
     }
 
     public static function getPages(): array

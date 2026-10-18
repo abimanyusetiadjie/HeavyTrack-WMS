@@ -10,7 +10,15 @@ class DeliveryOrder extends Model
 {
     use SoftDeletes;
 
-    //
+    protected $guarded = [];
+
+    public function invoice() {
+        return $this->hasOne(Invoice::class)->latestOfMany();
+    }
+
+    public function invoices() {
+        return $this->hasMany(Invoice::class);
+    }
 
     public function salesOrder() {
         return $this->belongsTo(SalesOrder::class);

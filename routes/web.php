@@ -11,6 +11,10 @@ Route::get('/print/delivery-order/{deliveryOrder}', [PrintDocumentController::cl
     ->name('print.delivery-order')
     ->middleware('auth');
 
+Route::get('/print/delivery-order/{deliveryOrder}/invoice', [PrintDocumentController::class, 'printInvoiceFromDeliveryOrder'])
+    ->name('print.delivery-order.invoice')
+    ->middleware('auth');
+
 Route::get('/print/invoice/{invoice}', [PrintDocumentController::class, 'printInvoice'])
     ->name('print.invoice')
     ->middleware('auth');

@@ -10,6 +10,8 @@ class Invoice extends Model
 {
     use SoftDeletes;
 
+    protected $guarded = [];
+
     protected $casts = [
         'subtotal' => 'float',
         'discount_amount' => 'float',
