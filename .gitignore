@@ -25,3 +25,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+*.sql
+*.bat
+.env.offline
+dump-railway.php
