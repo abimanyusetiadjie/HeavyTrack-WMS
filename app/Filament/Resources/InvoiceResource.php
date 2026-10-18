@@ -458,9 +458,9 @@ class InvoiceResource extends Resource
         return (float) $cleaned;
     }
 
-    protected static function formatMoney(float | int $value): string
+    protected static function formatMoney(float | int $value): int
     {
-        return number_format(round($value), 0, ',', '.');
+        return (int) round($value);
     }
 
     protected static function recalculateTotalsFromRoot(callable $set, callable $get): void

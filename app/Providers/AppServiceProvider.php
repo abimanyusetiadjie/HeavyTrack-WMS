@@ -22,8 +22,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         \Illuminate\Database\Eloquent\Model::unguard();
-        // Force HTTPS in production to prevent mixed-content blocked assets (CSS/JS)
-        if (config('app.env') !== 'local') {
+        // Force HTTPS on cloud (Railway) or when FORCE_HTTPS=true, allowing HTTP on offline Windows LAN
+        if (env('FORCE_HTTPS', isset($_SERVER['RAILWAY_ENVIRONMENT']))) {
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 

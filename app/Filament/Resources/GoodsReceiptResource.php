@@ -149,7 +149,7 @@ class GoodsReceiptResource extends Resource
                                             $part = Part::find($state);
                                             if ($part) {
                                                 $set('unit', $part->unit ?? 'PCS');
-                                                $set('unit_cost', number_format(round((float) ($part->cost_price ?? 0)), 0, ',', '.'));
+                                                $set('unit_cost', (int) round((float) ($part->cost_price ?? 0)));
                                                 $set('bin_location_snapshot', $part->bin_location);
                                             }
                                         }
