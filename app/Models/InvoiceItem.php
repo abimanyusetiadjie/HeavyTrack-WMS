@@ -20,7 +20,7 @@ class InvoiceItem extends Model
         return $this->belongsTo(Invoice::class);
     }
     public function part() {
-        return $this->belongsTo(Part::class);
+        return $this->belongsTo(Part::class)->withTrashed();
     }
 }
 

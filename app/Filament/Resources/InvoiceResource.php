@@ -99,21 +99,21 @@ class InvoiceResource extends Resource
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if ($state) {
-                                    $do = DeliveryOrder::with(['items.part', 'contact'])->find($state);
+                                    $do = DeliveryOrder::with(['items.part' => fn ($q) => $q->withTrashed(), 'contact'])->find($state);
                                     if ($do) {
                                         $set('contact_id', $do->contact_id);
                                         
                                         $items = [];
                                         $subtotal = 0;
                                         foreach ($do->items as $item) {
-                                            $price = round((float) ($item->part->selling_price ?? 0));
+                                            $price = round((float) ($item->part?->selling_price ?? 0));
                                             $total = round($item->qty * $price);
                                             $subtotal += $total;
                                             
                                             $items[] = [
                                                 'part_id' => $item->part_id,
-                                                'part_number_snapshot' => $item->part->part_number,
-                                                'part_name_snapshot' => $item->part->name,
+                                                'part_number_snapshot' => $item->part?->part_number ?? '-',
+                                                'part_name_snapshot' => $item->part?->name ?? 'Sparepart',
                                                 'qty' => $item->qty,
                                                 'unit' => $item->unit,
                                                 'unit_price' => self::formatMoney($price),
@@ -128,6 +128,14 @@ class InvoiceResource extends Resource
                                         $set('subtotal', self::formatMoney($subtotal));
                                         $set('tax_amount', self::formatMoney($tax));
                                         $set('grand_total', self::formatMoney(max(0, $subtotal - $discount + $tax)));
+
+                                        if (empty($items)) {
+                                            \Filament\Notifications\Notification::make()
+                                                ->warning()
+                                                ->title('Surat Jalan Belum Memiliki Barang')
+                                                ->body("Surat Jalan {$do->do_number} belum memiliki rincian barang. Silakan isi barang pada Surat Jalan atau tambahkan rincian secara manual di bawah.")
+                                                ->send();
+                                        }
                                     }
                                 }
                             }),
@@ -154,23 +162,25 @@ class InvoiceResource extends Resource
                             ->label('')
                             ->addActionLabel('Tambah Tagihan Lainnya')
                             ->relationship()
+                            ->minItems(1)
+                            ->required()
                             ->live()
                             ->afterStateUpdated(fn (callable $set, callable $get) => self::recalculateTotalsFromRoot($set, $get))
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
-                                    ->options(Part::query()->pluck('name', 'id'))
+                                    ->options(fn () => Part::withTrashed()->get()->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}"]))
                                     ->required()
                                     ->searchable()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         if ($state) {
-                                            $part = Part::find($state);
+                                            $part = Part::withTrashed()->find($state);
                                             if ($part) {
                                                 $price = round((float) ($part->selling_price ?? 0));
-                                                $set('part_number_snapshot', $part->part_number);
-                                                $set('part_name_snapshot', $part->name);
-                                                $set('unit', $part->unit);
+                                                $set('part_number_snapshot', $part->part_number ?? '-');
+                                                $set('part_name_snapshot', $part->name ?? 'Sparepart');
+                                                $set('unit', $part->unit ?? 'PCS');
                                                 $set('unit_price', self::formatMoney($price));
                                                 $qty = (float) ($get('qty') ?? 1);
                                                 $set('qty', $qty);
@@ -252,7 +262,7 @@ class InvoiceResource extends Resource
                                     ->dehydrated()
                                     ->columnSpan(['default' => 12, 'md' => 3]),
                             ])->columns(['default' => 12, 'md' => 12])
-                    ])->disabled(fn (?Invoice $record) => $record?->status === 'PAID'),
+                    ]),
 
                 Section::make('Total & Kalkulasi Akhir')
                     ->description('Ringkasan nilai transaksi, potongan, pajak PPN, dan grand total.')
@@ -344,8 +354,7 @@ class InvoiceResource extends Resource
                         Forms\Components\Hidden::make('created_by')
                             ->default(auth()->id() ?? 1),
                     ])
-                    ->columns(['default' => 12, 'md' => 12])
-                    ->disabled(fn (?Invoice $record) => $record?->status === 'PAID'),
+                    ->columns(['default' => 12, 'md' => 12]),
             ]);
     }
 

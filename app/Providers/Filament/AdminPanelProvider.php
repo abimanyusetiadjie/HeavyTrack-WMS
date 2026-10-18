@@ -30,6 +30,9 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->profile()
             ->brandName('Mitra Abadi Nusantara')
+            ->brandLogo(fn () => view('filament.components.brand-logo'))
+            ->brandLogoHeight('2.4rem')
+            ->favicon(asset('images/logo.png'))
             ->colors([
                 'primary' => Color::Amber,
             ])

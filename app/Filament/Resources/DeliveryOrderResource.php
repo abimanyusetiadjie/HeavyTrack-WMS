@@ -143,10 +143,12 @@ class DeliveryOrderResource extends Resource
                             ->label('')
                             ->addActionLabel('Tambah Barang Lainnya')
                             ->relationship()
+                            ->minItems(1)
+                            ->required()
                             ->schema([
                                 Forms\Components\Select::make('part_id')
-                                    ->label('Pilih Produk/Part')
-                                    ->options(Part::query()->pluck('name', 'id'))
+                                    ->label('Pilih Produk / Sparepart')
+                                    ->options(fn () => Part::withTrashed()->get()->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}"]))
                                     ->required()
                                     ->reactive()
                                     ->searchable()
@@ -155,9 +157,9 @@ class DeliveryOrderResource extends Resource
                                         if ($state && $warehouseId) {
                                             $stock = StockBalance::where('part_id', $state)->where('warehouse_id', $warehouseId)->first();
                                             $set('available_stock', $stock ? $stock->qty_on_hand : 0);
-                                            $part = Part::find($state);
+                                            $part = Part::withTrashed()->find($state);
                                             if ($part) {
-                                                $set('unit', $part->unit);
+                                                $set('unit', $part->unit ?? 'PCS');
                                             }
                                         } else {
                                             $set('available_stock', 0);
@@ -198,7 +200,7 @@ class DeliveryOrderResource extends Resource
                                     ->maxLength(255)
                                     ->columnSpanFull(),
                             ])->columns(['default' => 12, 'md' => 12]),
-                    ])->disabled(fn (?DeliveryOrder $record) => $record !== null && $record->status !== 'DRAFT'),
+                    ]),
             ]);
     }
 

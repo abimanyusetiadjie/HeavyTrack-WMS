@@ -20,17 +20,32 @@
     </style>
 </head>
 <body>
+    @php
+        $logoPath = public_path('images/logo.png');
+        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+    @endphp
     <div class="header-box">
         <table>
             <tr>
-                <td style="width: 60%; vertical-align: top;">
-                    <div class="company-name">MITRA ABADI NUSANTARA</div>
-                    <div class="company-sub">
-                        Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
-                        Telp: 081297354119 | Email: revaldo07@gmail.com
-                    </div>
+                <td style="width: 65%; vertical-align: top;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            @if($logoBase64)
+                            <td style="width: 55px; vertical-align: middle; padding: 0 10px 0 0; border: none;">
+                                <img src="{{ $logoBase64 }}" style="height: 48px; width: auto; display: block;" alt="Logo" />
+                            </td>
+                            @endif
+                            <td style="vertical-align: middle; border: none; padding: 0;">
+                                <div class="company-name">MITRA ABADI NUSANTARA</div>
+                                <div class="company-sub">
+                                    Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
+                                    Telp: 081297354119 | Email: revaldo07@gmail.com
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
                 </td>
-                <td style="width: 40%; vertical-align: top;">
+                <td style="width: 35%; vertical-align: top;">
                     <div class="doc-title">BUKTI PENERIMAAN BARANG</div>
                     <div class="doc-number">No: {{ $gr->receipt_number }}</div>
                 </td>
@@ -70,7 +85,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($gr->items as $index => $item)
+            @forelse($gr->items as $index => $item)
             <tr>
                 <td style="text-align: center;">{{ $index + 1 }}</td>
                 <td style="font-family: monospace; font-weight: bold;">{{ $item->part->part_number ?? '-' }}</td>
@@ -78,7 +93,13 @@
                 <td style="text-align: center; font-weight: bold;">{{ $item->qty_received }} {{ $item->unit }}</td>
                 <td>{{ $item->bin_location_snapshot ?? $item->part->bin_location ?? '-' }}</td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+                <td colspan="5" style="text-align: center; color: #64748b; padding: 12px; font-style: italic;">
+                    (Belum ada rincian barang pada Penerimaan ini. Silakan tambahkan barang di menu Penerimaan Barang).
+                </td>
+            </tr>
+            @endforelse
         </tbody>
     </table>
 

@@ -137,16 +137,18 @@ class GoodsReceiptResource extends Resource
                             ->label('')
                             ->addActionLabel('Tambah Barang Masuk Lainnya')
                             ->relationship()
+                            ->minItems(1)
+                            ->required()
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
-                                    ->options(Part::query()->pluck('name', 'id'))
+                                    ->options(fn () => Part::withTrashed()->get()->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}"]))
                                     ->required()
                                     ->searchable()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state) {
-                                            $part = Part::find($state);
+                                            $part = Part::withTrashed()->find($state);
                                             if ($part) {
                                                 $set('unit', $part->unit ?? 'PCS');
                                                 $set('unit_cost', (int) round((float) ($part->cost_price ?? 0)));
@@ -191,7 +193,7 @@ class GoodsReceiptResource extends Resource
                                     ->maxLength(255)
                                     ->columnSpanFull(),
                             ])->columns(['default' => 12, 'md' => 12]),
-                    ])->disabled(fn (?GoodsReceipt $record) => $record !== null && $record->status !== 'DRAFT'),
+                    ]),
             ]);
     }
 

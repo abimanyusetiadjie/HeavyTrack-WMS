@@ -24,17 +24,32 @@
     </style>
 </head>
 <body>
+    @php
+        $logoPath = public_path('images/logo.png');
+        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+    @endphp
     <div class="header-box">
         <table>
             <tr>
-                <td style="width: 60%; vertical-align: top;">
-                    <div class="company-name">MITRA ABADI NUSANTARA</div>
-                    <div class="company-sub">
-                        Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
-                        Telp: 081297354119 | Email: revaldo07@gmail.com
-                    </div>
+                <td style="width: 65%; vertical-align: top;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            @if($logoBase64)
+                            <td style="width: 55px; vertical-align: middle; padding: 0 10px 0 0; border: none;">
+                                <img src="{{ $logoBase64 }}" style="height: 48px; width: auto; display: block;" alt="Logo" />
+                            </td>
+                            @endif
+                            <td style="vertical-align: middle; border: none; padding: 0;">
+                                <div class="company-name">MITRA ABADI NUSANTARA</div>
+                                <div class="company-sub">
+                                    Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
+                                    Telp: 081297354119 | Email: revaldo07@gmail.com
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
                 </td>
-                <td style="width: 40%; vertical-align: top;">
+                <td style="width: 35%; vertical-align: top;">
                     <div class="doc-title">FAKTUR PENJUALAN</div>
                     <div class="doc-number">No: {{ $invoice->invoice_number }}</div>
                 </td>
@@ -77,16 +92,22 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($invoice->items as $index => $item)
+            @forelse($invoice->items as $index => $item)
             <tr>
                 <td style="text-align: center;">{{ $index + 1 }}</td>
-                <td style="font-family: monospace; font-weight: bold;">{{ $item->part_number_snapshot }}</td>
-                <td>{{ $item->part_name_snapshot }}</td>
+                <td style="font-family: monospace; font-weight: bold;">{{ $item->part_number_snapshot ?: ($item->part->part_number ?? '-') }}</td>
+                <td>{{ $item->part_name_snapshot ?: ($item->part->name ?? 'Sparepart') }}</td>
                 <td style="text-align: center;">{{ $item->qty }} {{ $item->unit }}</td>
                 <td style="text-align: right;">Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
                 <td style="text-align: right; font-weight: bold;">Rp {{ number_format($item->total_price, 0, ',', '.') }}</td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+                <td colspan="6" style="text-align: center; color: #64748b; padding: 12px; font-style: italic;">
+                    (Belum ada rincian barang pada Faktur ini. Silakan tambahkan barang di rincian tagihan).
+                </td>
+            </tr>
+            @endforelse
         </tbody>
     </table>
 

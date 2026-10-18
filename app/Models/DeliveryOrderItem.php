@@ -14,7 +14,7 @@ class DeliveryOrderItem extends Model
         return $this->belongsTo(DeliveryOrder::class);
     }
     public function part() {
-        return $this->belongsTo(Part::class);
+        return $this->belongsTo(Part::class)->withTrashed();
     }
 }
 
