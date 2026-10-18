@@ -150,6 +150,10 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->searchPlaceholder('Cari nama barang, barcode, atau SKU...')
+            ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
+            ->deferFilters(false)
+            ->filtersFormColumns(['default' => 1, 'sm' => 2, 'md' => 4, 'lg' => 4])
             ->columns([
                 Tables\Columns\TextColumn::make('part_number')
                     ->label('Nomor Part')
@@ -168,31 +172,47 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Kategori')
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('bin_location')
+                    ->label('Lokasi Rak')
+                    ->placeholder('-')
+                    ->searchable()
+                    ->sortable(),
                     
                 Tables\Columns\TextColumn::make('stock_balances_sum_qty_on_hand')
                     ->label('Total Stok')
                     ->sum('stockBalances', 'qty_on_hand')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->badge()
+                    ->color(fn ($state) => ($state === null || (float) $state < 100) ? 'danger' : 'success')
+                    ->formatStateUsing(fn ($state, Part $record) => number_format((float) ($state ?? 0), 0, ',', '.') . ' ' . ($record->unit ?? 'PCS')),
                     
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Aktif')
                     ->boolean(),
             ])
             ->filters([
-                Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
-                
-                Tables\Filters\SelectFilter::make('brand_id')
-                    ->relationship('brand', 'name')
-                    ->label('Saring Merek'),
-                    
                 Tables\Filters\SelectFilter::make('category_id')
                     ->relationship('category', 'name')
-                    ->label('Saring Kategori'),
-                    
-                Tables\Filters\Filter::make('low_stock')
-                    ->label('Peringatan Stok Menipis')
-                    ->query(fn (Builder $query): Builder => $query->whereRaw('(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= parts.min_stock_level')),
+                    ->label('Kategori')
+                    ->placeholder('Semua Kategori')
+                    ->searchable()
+                    ->preload(),
+
+                Tables\Filters\Filter::make('low_stock_100')
+                    ->label('⚠️ Stok < 100')
+                    ->query(fn (Builder $query): Builder => $query->whereRaw('(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) < 100'))
+                    ->toggle(),
+
+                Tables\Filters\SelectFilter::make('brand_id')
+                    ->relationship('brand', 'name')
+                    ->label('Merek')
+                    ->placeholder('Semua Merek')
+                    ->searchable()
+                    ->preload(),
+
+                Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
             ])
             ->actions([
                 \Filament\Actions\Action::make('adjustStock')
