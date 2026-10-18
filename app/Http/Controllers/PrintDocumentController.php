@@ -75,7 +75,6 @@ class PrintDocumentController extends Controller
                 'tax_amount' => $taxAmount,
                 'grand_total' => $grandTotal,
                 'paid_amount' => 0,
-                'notes' => 'Faktur diterbitkan otomatis dari Surat Jalan: ' . $deliveryOrder->do_number,
                 'created_by' => $user->id ?? 1,
             ]);
 
