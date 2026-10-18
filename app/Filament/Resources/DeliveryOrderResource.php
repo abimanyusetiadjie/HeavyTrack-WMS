@@ -76,17 +76,20 @@ class DeliveryOrderResource extends Resource
 
                         Forms\Components\Select::make('status')
                             ->label('Status Pengiriman')
-                            ->options([
-                                'DRAFT' => 'DRAFT (Konsep - Belum Potong Stok)',
-                                'ISSUED' => 'DITERBITKAN (Potong Stok)',
-                                'CONFIRMED' => 'DIKONFIRMASI',
-                                'SHIPPED' => 'DALAM PENGIRIMAN',
-                                'RECEIVED' => 'DITERIMA PELANGGAN',
-                                'VOID' => 'DIBATALKAN (Kembalikan Stok)',
-                            ])
-                            ->default('ISSUED')
+                            ->options(function (?DeliveryOrder $record) {
+                                $options = [
+                                    'CONFIRMED' => 'DIKONFIRMASI',
+                                    'VOID' => 'DIBATALKAN (Kembalikan Stok)',
+                                ];
+                                if ($record && !array_key_exists($record->status, $options)) {
+                                    $options[$record->status] = $record->status;
+                                }
+                                return $options;
+                            })
+                            ->default('CONFIRMED')
+                            ->selectablePlaceholder(false)
                             ->required()
-                            ->helperText('Status selain DRAFT akan otomatis memotong saldo stok fisik gudang.'),
+                            ->helperText('Status pengiriman otomatis DIKONFIRMASI dan langsung memotong saldo stok fisik gudang.'),
                             
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang Asal')
@@ -212,7 +215,20 @@ class DeliveryOrderResource extends Resource
                 Tables\Columns\TextColumn::make('delivery_date')->label('Tgl Kirim')->date('d M Y')->sortable(),
                 Tables\Columns\TextColumn::make('warehouse.name')->label('Gudang Asal'),
                 Tables\Columns\TextColumn::make('contact.company_name')->label('Tujuan / Pelanggan'),
-                Tables\Columns\TextColumn::make('status')->label('Status')->badge(),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'CONFIRMED', 'ISSUED' => 'DIKONFIRMASI',
+                        'VOID' => 'DIBATALKAN',
+                        'DRAFT' => 'DRAFT',
+                        default => $state,
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'CONFIRMED', 'ISSUED' => 'success',
+                        'VOID' => 'danger',
+                        default => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('invoice.invoice_number')
                     ->label('Faktur Penjualan')
                     ->badge()
@@ -222,6 +238,12 @@ class DeliveryOrderResource extends Resource
                     ->openUrlInNewTab(),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('status')
+                    ->label('Status Pengiriman')
+                    ->options([
+                        'CONFIRMED' => 'DIKONFIRMASI',
+                        'VOID' => 'DIBATALKAN',
+                    ]),
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
             ])
             ->actions([

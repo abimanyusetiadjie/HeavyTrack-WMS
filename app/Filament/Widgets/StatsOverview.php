@@ -19,7 +19,7 @@ class StatsOverview extends BaseWidget
 
         $lowStockCount = Part::whereRaw('(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= parts.min_stock_level')->count();
 
-        $pendingDO = DeliveryOrder::whereIn('status', ['DRAFT', 'ISSUED'])->count();
+        $confirmedDO = DeliveryOrder::whereIn('status', ['CONFIRMED', 'ISSUED'])->count();
 
         $stats = [
             Stat::make('Katalog Produk Aktif', Part::count() . ' Varian')
@@ -32,10 +32,10 @@ class StatsOverview extends BaseWidget
                 ->descriptionIcon('heroicon-m-exclamation-triangle')
                 ->color($lowStockCount > 0 ? 'danger' : 'success'),
 
-            Stat::make('Surat Jalan Dalam Proses', $pendingDO . ' Dokumen')
-                ->description('Menunggu verifikasi pengiriman')
+            Stat::make('Surat Jalan Dikonfirmasi', $confirmedDO . ' Dokumen')
+                ->description('Telah dikonfirmasi & memotong stok')
                 ->descriptionIcon('heroicon-m-truck')
-                ->color('warning'),
+                ->color('success'),
         ];
 
         $user = auth()->user();
