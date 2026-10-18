@@ -78,7 +78,8 @@
 <body>
     @php
         $logoPath = public_path('images/logo.png');
-        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+        $hasGd = extension_loaded('gd') && function_exists('imagecreatefrompng');
+        $logoBase64 = ($hasGd && file_exists($logoPath)) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
     @endphp
     <div class="header-box">
         <table>
