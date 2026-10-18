@@ -31,7 +31,7 @@
                     <div class="company-name">MITRA ABADI NUSANTARA</div>
                     <div class="company-sub">
                         Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
-                        Telp: (021) 8988-0000 | Email: keuangan@mitraabadinusantara.co.id
+                        Telp: 081297354119 | Email: revaldo07@gmail.com
                     </div>
                 </td>
                 <td style="width: 40%; vertical-align: top;">
@@ -94,8 +94,8 @@
         <div class="payment-info">
             <strong>Instruksi Pembayaran Bank Transfer:</strong><br>
             Bank: <strong>BCA (Bank Central Asia)</strong><br>
-            No. Rekening: <strong>8800-1234-56</strong><br>
-            Atas Nama: <strong>PT MITRA ABADI NUSANTARA</strong><br>
+            No. Rekening: <strong>6891102400</strong><br>
+            Atas Nama: <strong>MITRA</strong><br>
             <small style="color: #64748b;">* Harap mencantumkan nomor faktur pada berita transfer.</small>
         </div>
 

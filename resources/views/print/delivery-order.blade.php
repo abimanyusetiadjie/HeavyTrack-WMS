@@ -83,7 +83,7 @@
                     <div class="company-name">MITRA ABADI NUSANTARA</div>
                     <div class="company-sub">
                         Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
-                        Telp: (021) 8988-0000 | Email: operasional@mitraabadinusantara.co.id
+                        Telp: 081297354119 | Email: revaldo07@gmail.com
                     </div>
                 </td>
                 <td style="width: 40%; vertical-align: top;">

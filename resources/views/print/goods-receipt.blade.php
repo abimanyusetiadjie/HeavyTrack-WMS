@@ -27,7 +27,7 @@
                     <div class="company-name">MITRA ABADI NUSANTARA</div>
                     <div class="company-sub">
                         Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
-                        Gudang & Logistik Masuk (Inbound Logistics)
+                        Telp: 081297354119 | Email: revaldo07@gmail.com
                     </div>
                 </td>
                 <td style="width: 40%; vertical-align: top;">
