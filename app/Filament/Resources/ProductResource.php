@@ -171,11 +171,11 @@ class ProductResource extends Resource
                     ->label('Kategori')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('bin_location')
-                    ->label('Lokasi Rak')
-                    ->placeholder('-')
-                    ->searchable()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('selling_price')
+                    ->label('Harga')
+                    ->sortable()
+                    ->weight('semibold')
+                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float) ($state ?? 0), 0, ',', '.')),
                     
                 Tables\Columns\TextColumn::make('stock_balances_sum_qty_on_hand')
                     ->label('Total Stok')
