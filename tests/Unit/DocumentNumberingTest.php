@@ -108,4 +108,62 @@ class DocumentNumberingTest extends TestCase
 
         $this->assertEquals($prefix . '0002', $nextInvNumber);
     }
+
+    public function test_deleting_confirmed_delivery_order_reverses_stock(): void
+    {
+        $warehouse = \App\Models\Warehouse::create(['name' => 'Gudang Pusat', 'code' => 'GDG-PST']);
+        $brand = \App\Models\Brand::create(['name' => 'Fleetguard', 'code' => 'FLT']);
+        $category = \App\Models\Category::create(['name' => 'Fuel Filter', 'code' => 'FF']);
+        $part = \App\Models\Part::create([
+            'part_number' => 'FS1280',
+            'clean_part_number' => 'FS1280',
+            'name' => 'Fuel Water Separator Filter FS1280',
+            'brand_id' => $brand->id,
+            'category_id' => $category->id,
+            'unit' => 'PCS',
+            'min_stock_level' => 5,
+        ]);
+        $contact = \App\Models\Contact::create(['company_name' => 'PT Pelanggan Maju', 'type' => 'CUSTOMER']);
+        $user = \App\Models\User::factory()->create();
+
+        // 1. Initial stock 50
+        $inventoryService = app(\App\Services\InventoryService::class);
+        $inventoryService->adjustStock($warehouse->id, $part->id, 50, 'Initial setup');
+
+        $stock = \App\Models\StockBalance::where('warehouse_id', $warehouse->id)->where('part_id', $part->id)->first();
+        $this->assertEquals(50, $stock->qty_on_hand);
+
+        // 2. Create DO with 10 units
+        $do = DeliveryOrder::create([
+            'do_number' => 'SJ/' . date('Ym') . '/9999',
+            'warehouse_id' => $warehouse->id,
+            'contact_id' => $contact->id,
+            'created_by' => $user->id,
+            'delivery_date' => now(),
+            'status' => 'CONFIRMED',
+        ]);
+        $do->items()->create([
+            'part_id' => $part->id,
+            'qty' => 10,
+            'unit' => 'PCS',
+        ]);
+
+        // Trigger deduction
+        app(\App\Observers\DeliveryOrderObserver::class)->handleStatusChange($do, null, 'CONFIRMED');
+
+        $stock->refresh();
+        $this->assertEquals(40, $stock->qty_on_hand);
+
+        // 3. Delete DO -> should reverse stock back to 50
+        $do->delete();
+
+        $stock->refresh();
+        $this->assertEquals(50, $stock->qty_on_hand);
+
+        // 4. Restore DO -> should deduct stock again to 40
+        $do->restore();
+
+        $stock->refresh();
+        $this->assertEquals(40, $stock->qty_on_hand);
+    }
 }

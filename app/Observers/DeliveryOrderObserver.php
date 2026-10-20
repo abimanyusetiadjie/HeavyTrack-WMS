@@ -23,6 +23,44 @@ class DeliveryOrderObserver
         }
     }
 
+    public function deleted(DeliveryOrder $deliveryOrder): void
+    {
+        $triggerStatuses = ['ISSUED', 'CONFIRMED', 'SHIPPED', 'RECEIVED'];
+        if (in_array($deliveryOrder->status, $triggerStatuses, true)) {
+            $deliveryOrder->loadMissing('items');
+            foreach ($deliveryOrder->items as $item) {
+                $this->inventoryService->addStock(
+                    $deliveryOrder->warehouse_id,
+                    $item->part_id,
+                    $item->qty,
+                    'DELIVERY_ORDER_VOID',
+                    $deliveryOrder->id,
+                    $deliveryOrder->do_number,
+                    'Penghapusan Dokumen Surat Jalan: ' . $deliveryOrder->do_number . ' (Stok Dikembalikan)'
+                );
+            }
+        }
+    }
+
+    public function restored(DeliveryOrder $deliveryOrder): void
+    {
+        $triggerStatuses = ['ISSUED', 'CONFIRMED', 'SHIPPED', 'RECEIVED'];
+        if (in_array($deliveryOrder->status, $triggerStatuses, true)) {
+            $deliveryOrder->loadMissing('items');
+            foreach ($deliveryOrder->items as $item) {
+                $this->inventoryService->deductStock(
+                    $deliveryOrder->warehouse_id,
+                    $item->part_id,
+                    $item->qty,
+                    'DELIVERY_ORDER',
+                    $deliveryOrder->id,
+                    $deliveryOrder->do_number,
+                    'Pemulihan Surat Jalan: ' . $deliveryOrder->do_number . ' (Stok Dipotong Kembali)'
+                );
+            }
+        }
+    }
+
     public function handleStatusChange(DeliveryOrder $do, ?string $oldStatus, string $newStatus): void
     {
         $triggerStatuses = ['ISSUED', 'CONFIRMED', 'SHIPPED', 'RECEIVED'];

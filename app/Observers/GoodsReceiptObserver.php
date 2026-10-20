@@ -22,6 +22,42 @@ class GoodsReceiptObserver
         }
     }
 
+    public function deleted(GoodsReceipt $goodsReceipt): void
+    {
+        if ($goodsReceipt->status === 'RECEIVED') {
+            $goodsReceipt->loadMissing('items');
+            foreach ($goodsReceipt->items as $item) {
+                $this->inventoryService->deductStock(
+                    $goodsReceipt->warehouse_id,
+                    $item->part_id,
+                    $item->qty_received,
+                    'GOODS_RECEIPT_VOID',
+                    $goodsReceipt->id,
+                    $goodsReceipt->receipt_number,
+                    'Penghapusan Dokumen LPB: ' . $goodsReceipt->receipt_number . ' (Stok Ditarik Kembali)'
+                );
+            }
+        }
+    }
+
+    public function restored(GoodsReceipt $goodsReceipt): void
+    {
+        if ($goodsReceipt->status === 'RECEIVED') {
+            $goodsReceipt->loadMissing('items');
+            foreach ($goodsReceipt->items as $item) {
+                $this->inventoryService->addStock(
+                    $goodsReceipt->warehouse_id,
+                    $item->part_id,
+                    $item->qty_received,
+                    'GOODS_RECEIPT',
+                    $goodsReceipt->id,
+                    $goodsReceipt->receipt_number,
+                    'Pemulihan Dokumen LPB: ' . $goodsReceipt->receipt_number . ' (Stok Dimasukkan Kembali)'
+                );
+            }
+        }
+    }
+
     public function handleStatusChange(GoodsReceipt $gr, ?string $oldStatus, string $newStatus)
     {
         // Transisi dari DRAFT ke RECEIVED -> Tambah stok

@@ -113,7 +113,8 @@ class WarehouseResource extends Resource
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
             ])
             ->actions([
-                \Filament\Actions\EditAction::make()->label('Ubah'),
+                \Filament\Actions\EditAction::make()->label('Ubah')->size('sm'),
+                \Filament\Actions\DeleteAction::make()->label('Hapus')->size('sm'),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
