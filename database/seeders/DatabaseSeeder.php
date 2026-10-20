@@ -22,19 +22,21 @@ class DatabaseSeeder extends Seeder
         $ownerRole = Role::firstOrCreate(['name' => 'Owner']);
         $adminRole = Role::firstOrCreate(['name' => 'Admin']);
 
-        // 2. Users (Gunakan password aman)
-        $defaultOwnerPassword = Hash::make(env('DEFAULT_OWNER_PASSWORD', 'OwnerHeavyTrack@2026!'));
-        $owner = User::firstOrCreate(
-            ['email' => 'owner@heavytrack.com'],
-            ['name' => 'Owner', 'password' => $defaultOwnerPassword]
-        );
+        // 2. Users (Kredensial mudah untuk operasional)
+        $ownerPassword = Hash::make(env('DEFAULT_OWNER_PASSWORD', '12345678'));
+        $owner = User::firstOrNew(['email' => 'owner@heavytrack.com']);
+        $owner->name = 'owner';
+        $owner->username = 'owner';
+        $owner->password = $ownerPassword;
+        $owner->save();
         $owner->syncRoles([$ownerRole]);
 
-        $defaultAdminPassword = Hash::make(env('DEFAULT_ADMIN_PASSWORD', 'HeavyTrack@2026!'));
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@heavytrack.com'],
-            ['name' => 'Admin Operasional', 'password' => $defaultAdminPassword]
-        );
+        $adminPassword = Hash::make(env('DEFAULT_ADMIN_PASSWORD', '12345678'));
+        $admin = User::firstOrNew(['email' => 'admin@heavytrack.com']);
+        $admin->name = 'admin';
+        $admin->username = 'admin';
+        $admin->password = $adminPassword;
+        $admin->save();
         $admin->syncRoles([$adminRole]);
 
         // Hapus role lama yang tidak terpakai

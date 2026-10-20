@@ -22,6 +22,7 @@ class User extends Authenticatable implements FilamentUser
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
     ];
@@ -49,9 +50,10 @@ class User extends Authenticatable implements FilamentUser
     {
         $emailLower = strtolower($this->email ?? '');
         $nameLower = strtolower($this->name ?? '');
+        $usernameLower = strtolower($this->username ?? '');
 
         // Akun adminheavytruck secara eksplisit BUKAN Owner (role Admin)
-        if (str_contains($emailLower, 'adminheavytruck') || str_contains($nameLower, 'adminheavytruck')) {
+        if (str_contains($emailLower, 'adminheavytruck') || str_contains($nameLower, 'adminheavytruck') || str_contains($usernameLower, 'adminheavytruck')) {
             return false;
         }
 
@@ -60,8 +62,8 @@ class User extends Authenticatable implements FilamentUser
             return true;
         }
 
-        // Cek jika email atau nama mengandung kata owner
-        if (str_contains($emailLower, 'owner') || str_contains($nameLower, 'owner')) {
+        // Cek jika email, nama, atau username mengandung kata owner
+        if (str_contains($emailLower, 'owner') || str_contains($nameLower, 'owner') || str_contains($usernameLower, 'owner')) {
             return true;
         }
 
