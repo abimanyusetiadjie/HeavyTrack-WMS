@@ -213,4 +213,9 @@ echo   2. Atau http://heavytrack-wms.test/admin (jika via Virtual Host Laragon)
 echo   3. Untuk penggunaan sehari-hari, cukup klik ganda: JALANKAN_SISTEM.bat
 echo ============================================================================
 echo.
+if "%1"=="auto" (
+    echo [INFO] Setup otomatis selesai. Melanjutkan ke peluncuran aplikasi...
+    timeout /t 2 >nul
+    exit /b 0
+)
 pause
