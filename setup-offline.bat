@@ -170,6 +170,13 @@ echo.
 echo [TAHAP 5/7] Menjalankan Migrasi Skema Database ^& Symlink Storage...
 call php artisan migrate --force
 
+:: Jika database masih kosong (belum ada user), jalankan seeder awal
+php -r "require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); if(\App\Models\User::count() === 0) exit(1);" 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [INFO] Database baru terdeteksi: Mengisi data awal (Akun Owner, Admin, Gudang, ^& 19 Master Produk)...
+    call php artisan db:seed --force
+)
+
 if exist "public\storage" (
     rmdir "public\storage" 2>nul
     del /f /q "public\storage" 2>nul
@@ -195,15 +202,15 @@ call php artisan icons:cache
 echo.
 echo [TAHAP 7/7] Memvalidasi Integritas Data di Database Lokal...
 echo ----------------------------------------------------------------------------
-php artisan tinker --execute="echo '  - Total User             : ' . \App\Models\User::count() . PHP_EOL . '  - Total Master Part      : ' . \App\Models\Part::count() . PHP_EOL . '  - Total Gudang (WH)      : ' . \App\Models\Warehouse::count() . PHP_EOL . '  - Total Kontak/Klien     : ' . \App\Models\Contact::count() . PHP_EOL . '  - Total Goods Receipt    : ' . \App\Models\GoodsReceipt::count() . PHP_EOL . '  - Total Surat Jalan (DO) : ' . \App\Models\DeliveryOrder::count() . PHP_EOL . '  - Total Faktur (Invoice) : ' . \App\Models\Invoice::count() . PHP_EOL . '  - Total Saldo Stok Fisik : ' . number_format((float)\App\Models\StockBalance::sum('qty'), 0, ',', '.') . PHP_EOL;"
+php artisan tinker --execute="echo '  - Total User             : ' . \App\Models\User::count() . PHP_EOL . '  - Total Master Part      : ' . \App\Models\Part::count() . PHP_EOL . '  - Total Gudang (WH)      : ' . \App\Models\Warehouse::count() . PHP_EOL . '  - Total Kontak/Klien     : ' . \App\Models\Contact::count() . PHP_EOL . '  - Total Goods Receipt    : ' . \App\Models\GoodsReceipt::count() . PHP_EOL . '  - Total Surat Jalan (DO) : ' . \App\Models\DeliveryOrder::count() . PHP_EOL . '  - Total Faktur (Invoice) : ' . \App\Models\Invoice::count() . PHP_EOL . '  - Total Saldo Stok Fisik : ' . number_format((float)\App\Models\StockBalance::sum('qty_on_hand'), 0, ',', '.') . PHP_EOL;"
 echo ----------------------------------------------------------------------------
 
 echo.
 echo ============================================================================
 echo   SETUP OFFLINE SELESAI!
-echo   1. Klik tombol 'Stop' lalu 'Start All' ^(atau Reload^) di Laragon.
-echo   2. Buka browser ke: http://heavytrack-wms.test/admin
-echo      ^(atau http://localhost/heavytrack-wms/public/admin^)
+echo   1. Buka browser ke: http://localhost:8000/admin (jika menggunakan JALANKAN_SISTEM.bat)
+echo   2. Atau http://heavytrack-wms.test/admin (jika via Virtual Host Laragon)
+echo   3. Untuk penggunaan sehari-hari, cukup klik ganda: JALANKAN_SISTEM.bat
 echo ============================================================================
 echo.
 pause
