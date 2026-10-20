@@ -68,8 +68,23 @@ class InvoiceResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->default(function () {
-                                $count = Invoice::withTrashed()->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
-                                return 'INV/' . date('Ym') . '/' . str_pad($count, 4, '0', STR_PAD_LEFT);
+                                $prefix = 'INV/' . date('Ym') . '/';
+                                $latest = Invoice::withTrashed()
+                                    ->where('invoice_number', 'like', $prefix . '%')
+                                    ->orderByDesc('invoice_number')
+                                    ->value('invoice_number');
+
+                                $nextSeq = 1;
+                                if ($latest && preg_match('/(\d+)$/', $latest, $matches)) {
+                                    $nextSeq = (int) $matches[1] + 1;
+                                } else {
+                                    $nextSeq = Invoice::withTrashed()
+                                        ->whereMonth('created_at', date('m'))
+                                        ->whereYear('created_at', date('Y'))
+                                        ->count() + 1;
+                                }
+
+                                return $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
                             })
                             ->maxLength(50),
                             

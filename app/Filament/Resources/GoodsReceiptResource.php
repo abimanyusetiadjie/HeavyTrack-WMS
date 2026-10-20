@@ -64,8 +64,23 @@ class GoodsReceiptResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->default(function () {
-                                $count = GoodsReceipt::withTrashed()->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
-                                return 'LPB/' . date('Ym') . '/' . str_pad($count, 4, '0', STR_PAD_LEFT);
+                                $prefix = 'LPB/' . date('Ym') . '/';
+                                $latest = GoodsReceipt::withTrashed()
+                                    ->where('receipt_number', 'like', $prefix . '%')
+                                    ->orderByDesc('receipt_number')
+                                    ->value('receipt_number');
+
+                                $nextSeq = 1;
+                                if ($latest && preg_match('/(\d+)$/', $latest, $matches)) {
+                                    $nextSeq = (int) $matches[1] + 1;
+                                } else {
+                                    $nextSeq = GoodsReceipt::withTrashed()
+                                        ->whereMonth('created_at', date('m'))
+                                        ->whereYear('created_at', date('Y'))
+                                        ->count() + 1;
+                                }
+
+                                return $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
                             })
                             ->maxLength(50),
 

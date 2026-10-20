@@ -64,8 +64,23 @@ class DeliveryOrderResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->default(function () {
-                                $count = DeliveryOrder::withTrashed()->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
-                                return 'SJ/' . date('Ym') . '/' . str_pad($count, 4, '0', STR_PAD_LEFT);
+                                $prefix = 'SJ/' . date('Ym') . '/';
+                                $latest = DeliveryOrder::withTrashed()
+                                    ->where('do_number', 'like', $prefix . '%')
+                                    ->orderByDesc('do_number')
+                                    ->value('do_number');
+
+                                $nextSeq = 1;
+                                if ($latest && preg_match('/(\d+)$/', $latest, $matches)) {
+                                    $nextSeq = (int) $matches[1] + 1;
+                                } else {
+                                    $nextSeq = DeliveryOrder::withTrashed()
+                                        ->whereMonth('created_at', date('m'))
+                                        ->whereYear('created_at', date('Y'))
+                                        ->count() + 1;
+                                }
+
+                                return $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
                             })
                             ->maxLength(50),
                         

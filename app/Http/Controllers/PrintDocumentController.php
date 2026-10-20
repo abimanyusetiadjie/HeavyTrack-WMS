@@ -43,13 +43,25 @@ class PrintDocumentController extends Controller
             $deliveryOrder->load(['items.part' => fn ($q) => $q->withTrashed(), 'contact']);
             abort_if($deliveryOrder->items->isEmpty(), 400, 'Surat Jalan belum memiliki rincian barang. Silakan isi barang pada Surat Jalan terlebih dahulu.');
 
-            $count = Invoice::withTrashed()
-                ->whereMonth('created_at', date('m'))
-                ->whereYear('created_at', date('Y'))
+            $prefix = 'INV/' . date('Ym') . '/';
+            $latest = Invoice::withTrashed()
+                ->where('invoice_number', 'like', $prefix . '%')
                 ->lockForUpdate()
-                ->count() + 1;
+                ->orderByDesc('invoice_number')
+                ->value('invoice_number');
 
-            $invoiceNumber = 'INV/' . date('Ym') . '/' . str_pad($count, 4, '0', STR_PAD_LEFT);
+            $nextSeq = 1;
+            if ($latest && preg_match('/(\d+)$/', $latest, $matches)) {
+                $nextSeq = (int) $matches[1] + 1;
+            } else {
+                $nextSeq = Invoice::withTrashed()
+                    ->whereMonth('created_at', date('m'))
+                    ->whereYear('created_at', date('Y'))
+                    ->lockForUpdate()
+                    ->count() + 1;
+            }
+
+            $invoiceNumber = $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
 
             $subtotal = 0;
             $itemsData = [];
