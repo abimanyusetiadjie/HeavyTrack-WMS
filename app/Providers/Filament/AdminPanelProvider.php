@@ -29,6 +29,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login(\App\Filament\Pages\Auth\Login::class)
             ->profile()
+            ->maxContentWidth(\Filament\Support\Enums\Width::Full)
+            ->sidebarCollapsibleOnDesktop()
             ->brandName('Mitra Abadi Nusantara')
             ->brandLogo(fn () => view('filament.components.brand-logo'))
             ->brandLogoHeight('auto')

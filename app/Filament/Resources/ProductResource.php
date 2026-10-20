@@ -160,7 +160,8 @@ class ProductResource extends Resource
                     
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nama Barang')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrap(),
                     
                 Tables\Columns\TextColumn::make('brand.name')
                     ->label('Merek')
@@ -203,6 +204,7 @@ class ProductResource extends Resource
                     ->label('Sesuaikan Stok')
                     ->icon('heroicon-o-arrows-right-left')
                     ->color('warning')
+                    ->size('sm')
                     ->visible(fn (): bool => auth()->user() !== null)
                     ->form([
                         Forms\Components\Select::make('warehouse_id')
@@ -252,7 +254,8 @@ class ProductResource extends Resource
                             ->success()
                             ->send();
                     }),
-                \Filament\Actions\EditAction::make()->label('Ubah'),
+                \Filament\Actions\EditAction::make()->label('Ubah')->size('sm'),
+                \Filament\Actions\DeleteAction::make()->label('Hapus')->size('sm'),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([

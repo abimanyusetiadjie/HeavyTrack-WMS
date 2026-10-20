@@ -31,6 +31,31 @@ class ListProducts extends ListRecords
     {
         return [
             Actions\CreateAction::make()->label('Tambah Produk'),
+            Actions\Action::make('deleteProduct')
+                ->label('Hapus Produk')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->form([
+                    \Filament\Forms\Components\Select::make('part_id')
+                        ->label('Pilih Produk yang Ingin Dihapus')
+                        ->options(fn () => Part::pluck('name', 'id'))
+                        ->searchable()
+                        ->required(),
+                ])
+                ->requiresConfirmation()
+                ->modalHeading('Hapus Produk')
+                ->modalDescription('Apakah Anda yakin ingin menghapus data produk ini?')
+                ->modalSubmitActionLabel('Ya, Hapus')
+                ->action(function (array $data) {
+                    $part = Part::find($data['part_id']);
+                    if ($part) {
+                        $part->delete();
+                        \Filament\Notifications\Notification::make()
+                            ->title('Produk Berhasil Dihapus')
+                            ->success()
+                            ->send();
+                    }
+                }),
         ];
     }
 

@@ -20,6 +20,8 @@ class InvoiceResource extends Resource
 {
     protected static ?string $model = Invoice::class;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-currency-dollar';
     protected static \UnitEnum|string|null $navigationGroup = 'Keuangan & Penjualan';
     protected static ?string $modelLabel = 'Faktur (Invoice)';

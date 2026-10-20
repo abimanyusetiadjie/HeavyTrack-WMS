@@ -251,15 +251,18 @@ class DeliveryOrderResource extends Resource
                     ->label(fn (DeliveryOrder $record) => $record->invoice ? 'Cetak Faktur' : 'Terbitkan & Cetak Faktur')
                     ->icon('heroicon-o-document-currency-dollar')
                     ->color(fn (DeliveryOrder $record) => $record->invoice ? 'success' : 'warning')
+                    ->size('sm')
                     ->url(fn (DeliveryOrder $record): string => route('print.delivery-order.invoice', ['deliveryOrder' => $record->id]))
                     ->openUrlInNewTab(),
                 \Filament\Actions\Action::make('print')
                     ->label('Cetak SJ')
                     ->icon('heroicon-o-printer')
                     ->color('info')
+                    ->size('sm')
                     ->url(fn (DeliveryOrder $record): string => route('print.delivery-order', ['deliveryOrder' => $record->id]))
                     ->openUrlInNewTab(),
-                \Filament\Actions\EditAction::make()->label('Ubah'),
+                \Filament\Actions\EditAction::make()->label('Ubah')->size('sm'),
+                \Filament\Actions\DeleteAction::make()->label('Hapus')->size('sm'),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
