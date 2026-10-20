@@ -13,6 +13,20 @@ class ListProducts extends ListRecords
 {
     protected static string $resource = ProductResource::class;
 
+    public ?string $filterCategory = '';
+    public bool $filterLowStock = false;
+
+    public function updatedFilterCategory(): void
+    {
+        $this->resetPage();
+    }
+
+    public function toggleLowStock(): void
+    {
+        $this->filterLowStock = ! $this->filterLowStock;
+        $this->resetPage();
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -20,26 +34,12 @@ class ListProducts extends ListRecords
         ];
     }
 
-    public function getTabs(): array
+    protected function getTableQuery(): Builder
     {
-        return [
-            'all' => Tab::make('Semua Produk'),
-            'warning_stock' => Tab::make('⚠️ Stok < 100')
-                ->modifyQueryUsing(fn (Builder $query) => $query->whereRaw(
-                    '(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) < 100'
-                ))
-                ->badge(fn () => Part::whereRaw(
-                    '(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) < 100'
-                )->count())
-                ->badgeColor('danger'),
-            'out_of_stock' => Tab::make('❌ Habis (0)')
-                ->modifyQueryUsing(fn (Builder $query) => $query->whereRaw(
-                    '(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= 0'
-                ))
-                ->badge(fn () => Part::whereRaw(
-                    '(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= 0'
-                )->count())
-                ->badgeColor('gray'),
-        ];
+        return parent::getTableQuery()
+            ->when($this->filterCategory, fn ($query) => $query->where('category_id', $this->filterCategory))
+            ->when($this->filterLowStock, fn ($query) => $query->whereRaw(
+                '(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) < 100'
+            ));
     }
 }
