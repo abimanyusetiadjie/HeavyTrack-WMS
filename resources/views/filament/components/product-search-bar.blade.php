@@ -34,7 +34,7 @@
     <div class="product-category-wrapper">
         <select wire:model.live="filterCategory" class="product-category-select">
             <option value="">Semua Kategori</option>
-            @foreach(\App\Models\Category::orderBy('name')->get() as $cat)
+            @foreach(\App\Models\Category::whereNotIn('name', ['Element Assy', 'Heavy Equipment Filter'])->orderBy('name')->get() as $cat)
                 <option value="{{ $cat->id }}" {{ (string)$currentCategory === (string)$cat->id ? 'selected' : '' }}>
                     {{ $cat->name }}
                 </option>

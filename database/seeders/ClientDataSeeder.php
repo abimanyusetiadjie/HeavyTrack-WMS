@@ -27,7 +27,7 @@ class ClientDataSeeder extends Seeder
             ['509-5694', 'CAT', 'Fuel Filter Water Separator 509-5694', 'Fuel Filter', 'PCS', 'Caterpillar Primary Fuel Filter Water Separator'],
             ['53C0574', 'LiuGong', 'Oil Filter Element 53C0574', 'Oil Filter', 'PCS', 'LiuGong Genuine Parts Filter'],
             ['53C0436ID', 'LiuGong', 'Fuel Water Separator 53C0436ID', 'Fuel Filter', 'PCS', 'LiuGong Genuine Parts Fuel Water Separator'],
-            ['800194923', 'XCMG', 'Filter Element 800194923', 'Heavy Equipment Filter', 'PCS', 'XCMG Genuine Filter Part'],
+            ['800194923', 'XCMG', 'Filter Element 800194923', 'Fuel Filter', 'PCS', 'XCMG Genuine Filter Part'],
             ['2040PM', 'Parker Racor', 'Turbine Series Fuel Filter 2040PM', 'Fuel Filter', 'PCS', 'Parker Racor 30 Micron Fuel Filter Element'],
             ['2020PM', 'Parker Racor', 'Turbine Series Fuel Filter 2020PM', 'Fuel Filter', 'PCS', 'Parker Racor 30 Micron Fuel Filter Element'],
             ['A104-01460', 'SANY', 'Air / Element Filter A104-01460', 'Air Filter', 'PCS', 'Sany Genuine Parts Element Filter'],

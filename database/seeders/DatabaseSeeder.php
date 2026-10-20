@@ -85,7 +85,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        $categories = ['Fuel Filter', 'Oil Filter', 'Water Separator', 'Hydraulic Filter', 'Air Filter', 'Element Assy'];
+        $categories = ['Fuel Filter', 'Oil Filter', 'Water Separator', 'Hydraulic Filter', 'Air Filter'];
         foreach ($categories as $cat) {
             Category::firstOrCreate(
                 ['name' => $cat],
