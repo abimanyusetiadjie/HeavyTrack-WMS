@@ -117,7 +117,7 @@
             <strong>Instruksi Pembayaran Bank Transfer:</strong><br>
             Bank: <strong>BCA (Bank Central Asia)</strong><br>
             No. Rekening: <strong>6891102400</strong><br>
-            Atas Nama: <strong>MITRA</strong><br>
+            Atas Nama: <strong>Revaldo Julian</strong><br>
             <small style="color: #64748b;">* Harap mencantumkan nomor faktur pada berita transfer.</small>
         </div>
 
@@ -132,13 +132,9 @@
                 <td style="text-align: right; color: red;">- Rp {{ number_format($invoice->discount_amount, 0, ',', '.') }}</td>
             </tr>
             @endif
-            <tr>
-                <td>PPN ({{ $invoice->tax_percent ?? 11 }}%)</td>
-                <td style="text-align: right;">Rp {{ number_format($invoice->tax_amount, 0, ',', '.') }}</td>
-            </tr>
             <tr style="border-top: 2px solid #0f172a; font-weight: bold; font-size: 13px;">
                 <td>TOTAL TAGIHAN</td>
-                <td style="text-align: right;">Rp {{ number_format($invoice->grand_total, 0, ',', '.') }}</td>
+                <td style="text-align: right;">Rp {{ number_format(max(0, $invoice->subtotal - ($invoice->discount_amount ?? 0)), 0, ',', '.') }}</td>
             </tr>
             @if($invoice->paid_amount > 0)
             <tr style="color: green;">
@@ -147,7 +143,7 @@
             </tr>
             <tr style="font-weight: bold;">
                 <td>Sisa Tagihan</td>
-                <td style="text-align: right;">Rp {{ number_format(max(0, $invoice->grand_total - $invoice->paid_amount), 0, ',', '.') }}</td>
+                <td style="text-align: right;">Rp {{ number_format(max(0, max(0, $invoice->subtotal - ($invoice->discount_amount ?? 0)) - $invoice->paid_amount), 0, ',', '.') }}</td>
             </tr>
             @endif
         </table>
@@ -156,13 +152,12 @@
     <table class="footer-table">
         <tr>
             <td>
-                Penerima Tagihan,<br><br><br><br>
+                Penerima Tagihan,<br><br><br><br><br>
                 (___________________)
             </td>
             <td>
-                Hormat Kami,<br><br><br><br>
-                <strong>( Bagian Keuangan )</strong><br>
-                Mitra Abadi Nusantara
+                Hormat Kami,<br><br><br><br><br>
+                (___________________)
             </td>
         </tr>
     </table>

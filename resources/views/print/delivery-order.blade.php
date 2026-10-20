@@ -176,9 +176,8 @@
                 ( {{ $do->driver_name ?: '___________________' }} )
             </td>
             <td>
-                Hormat Kami,<br><br><br><br>
-                <strong>( {{ $do->creator->name ?? 'Petugas Gudang' }} )</strong><br>
-                Mitra Abadi Nusantara
+                Hormat Kami,<br><br><br><br><br>
+                (___________________)
             </td>
         </tr>
     </table>

@@ -123,7 +123,7 @@ class InvoiceResource extends Resource
                                         }
                                         $set('items', $items);
                                         $discount = self::parseMoney($get('discount_amount'));
-                                        $taxPercent = (float) ($get('tax_percent') ?? 11);
+                                        $taxPercent = (float) ($get('tax_percent') ?? 0);
                                         $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
                                         $set('subtotal', self::formatMoney($subtotal));
                                         $set('tax_amount', self::formatMoney($tax));
@@ -279,7 +279,7 @@ class InvoiceResource extends Resource
                             ->live(debounce: 400)
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 $subtotal = self::parseMoney($state);
-                                $taxPercent = (float) ($get('tax_percent') ?? 11);
+                                $taxPercent = (float) ($get('tax_percent') ?? 0);
                                 $discount = self::parseMoney($get('discount_amount'));
                                 $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
                                 $set('tax_amount', self::formatMoney($tax));
@@ -297,7 +297,7 @@ class InvoiceResource extends Resource
                             ->live(debounce: 400)
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 $subtotal = self::parseMoney($get('subtotal'));
-                                $taxPercent = (float) ($get('tax_percent') ?? 11);
+                                $taxPercent = (float) ($get('tax_percent') ?? 0);
                                 $discount = self::parseMoney($state);
                                 $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
                                 $set('tax_amount', self::formatMoney($tax));
@@ -309,7 +309,7 @@ class InvoiceResource extends Resource
                             ->label('PPN')
                             ->suffix('%')
                             ->numeric()
-                            ->default(11)
+                            ->default(0)
                             ->live(debounce: 400)
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 $subtotal = self::parseMoney($get('subtotal'));
@@ -485,7 +485,7 @@ class InvoiceResource extends Resource
         }
 
         $discount = self::parseMoney($get('discount_amount'));
-        $taxPercent = (float) ($get('tax_percent') ?? 11);
+        $taxPercent = (float) ($get('tax_percent') ?? 0);
         $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
         $grandTotal = round(max(0, $subtotal - $discount + $tax));
 
@@ -507,7 +507,7 @@ class InvoiceResource extends Resource
         }
 
         $discount = self::parseMoney($get('../../discount_amount'));
-        $taxPercent = (float) ($get('../../tax_percent') ?? 11);
+        $taxPercent = (float) ($get('../../tax_percent') ?? 0);
         $tax = round(max(0, $subtotal - $discount) * ($taxPercent / 100));
         $grandTotal = round(max(0, $subtotal - $discount + $tax));
 

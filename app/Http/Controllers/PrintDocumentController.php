@@ -58,9 +58,9 @@ class PrintDocumentController extends Controller
                 ];
             }
 
-            $taxPercent = 11;
-            $taxAmount = round($subtotal * ($taxPercent / 100));
-            $grandTotal = $subtotal + $taxAmount;
+            $taxPercent = 0;
+            $taxAmount = 0;
+            $grandTotal = $subtotal;
 
             $invoice = Invoice::create([
                 'invoice_number' => $invoiceNumber,
