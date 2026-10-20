@@ -39,7 +39,7 @@ class StatsOverview extends BaseWidget
         ];
 
         $user = auth()->user();
-        if ($user && ($user->hasRole('Admin') || $user->hasRole('Kasir') || $user->id === 1)) {
+        if ($user && $user->isOwner()) {
             $unpaidAmount = Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->sum('grand_total') 
                 - Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->sum('paid_amount');
 

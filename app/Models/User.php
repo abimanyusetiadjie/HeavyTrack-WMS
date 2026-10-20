@@ -43,6 +43,40 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Memeriksa apakah user adalah Owner (Pemilik Toko).
+     */
+    public function isOwner(): bool
+    {
+        $emailLower = strtolower($this->email ?? '');
+        $nameLower = strtolower($this->name ?? '');
+
+        // Akun adminheavytruck secara eksplisit BUKAN Owner (role Admin)
+        if (str_contains($emailLower, 'adminheavytruck') || str_contains($nameLower, 'adminheavytruck')) {
+            return false;
+        }
+
+        // Cek apakah memiliki role Owner dari Spatie
+        if ($this->hasRole('Owner')) {
+            return true;
+        }
+
+        // Cek jika email atau nama mengandung kata owner
+        if (str_contains($emailLower, 'owner') || str_contains($nameLower, 'owner')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Memeriksa apakah user adalah Admin (Kasir / Operasional).
+     */
+    public function isAdmin(): bool
+    {
+        return ! $this->isOwner();
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

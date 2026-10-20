@@ -26,25 +26,25 @@ class ProductResource extends Resource
     {
         $user = auth()->user();
         if (!$user) return false;
-        return $user->hasRole('Admin') || $user->hasRole('Gudang') || $user->hasRole('Kasir') || $user->id === 1;
+        return $user->isOwner() || $user->isAdmin();
     }
 
     public static function canCreate(): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1);
+        return (bool) $user;
     }
 
     public static function canEdit($record): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1);
+        return (bool) $user;
     }
 
     public static function canDelete($record): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->id === 1);
+        return $user && ($user->isOwner() || $user->isAdmin());
     }
 
     public static function form(Schema $schema): Schema
@@ -121,24 +121,23 @@ class ProductResource extends Resource
                     ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('cost_price')
-                            ->label('Harga Modal / Beli')
+                            ->label('Harga Pokok (HPP / Modal)')
                             ->prefix('Rp')
                             ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
                             ->stripCharacters('.')
-                            ->required()
                             ->numeric()
                             ->default(0)
-                            ->visible(fn (): bool => auth()->user()?->hasRole('Admin') || auth()->user()?->hasRole('Kasir') || auth()->id() === 1),
+                            ->visible(fn (): bool => auth()->user()?->isOwner() ?? false)
+                            ->dehydrated(fn (): bool => auth()->user()?->isOwner() ?? false),
                             
                         Forms\Components\TextInput::make('selling_price')
-                            ->label('Harga Jual / Ecer')
+                            ->label(fn (): string => (auth()->user()?->isOwner() ?? false) ? 'Harga Jual Standar' : 'Harga Jual Kasir')
                             ->prefix('Rp')
                             ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
                             ->stripCharacters('.')
                             ->required()
                             ->numeric()
-                            ->default(0)
-                            ->visible(fn (): bool => auth()->user()?->hasRole('Admin') || auth()->user()?->hasRole('Kasir') || auth()->id() === 1),
+                            ->default(0),
                             
                         Forms\Components\Toggle::make('is_active')
                             ->label('Status Aktif')
@@ -171,8 +170,14 @@ class ProductResource extends Resource
                     ->label('Kategori')
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('cost_price')
+                    ->label('HPP (Modal)')
+                    ->sortable()
+                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float) ($state ?? 0), 0, ',', '.'))
+                    ->visible(fn (): bool => auth()->user()?->isOwner() ?? false),
+
                 Tables\Columns\TextColumn::make('selling_price')
-                    ->label('Harga')
+                    ->label(fn (): string => (auth()->user()?->isOwner() ?? false) ? 'Harga Jual' : 'Harga')
                     ->sortable()
                     ->weight('semibold')
                     ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float) ($state ?? 0), 0, ',', '.')),
@@ -198,7 +203,7 @@ class ProductResource extends Resource
                     ->label('Sesuaikan Stok')
                     ->icon('heroicon-o-arrows-right-left')
                     ->color('warning')
-                    ->visible(fn (): bool => auth()->user()?->hasRole('Admin') || auth()->user()?->hasRole('Gudang') || auth()->id() === 1)
+                    ->visible(fn (): bool => auth()->user() !== null)
                     ->form([
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang')

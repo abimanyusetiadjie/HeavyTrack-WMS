@@ -28,25 +28,25 @@ class GoodsReceiptResource extends Resource
     {
         $user = auth()->user();
         if (!$user) return false;
-        return $user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1;
+        return $user->isOwner() || $user->isAdmin();
     }
 
     public static function canCreate(): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1);
+        return (bool) $user;
     }
 
     public static function canEdit($record): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1);
+        return (bool) $user;
     }
 
     public static function canDelete($record): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->id === 1);
+        return $user && ($user->isOwner() || $user->isAdmin());
     }
 
     public static function form(Schema $schema): Schema
@@ -151,7 +151,8 @@ class GoodsReceiptResource extends Resource
                                             $part = Part::withTrashed()->find($state);
                                             if ($part) {
                                                 $set('unit', $part->unit ?? 'PCS');
-                                                $set('unit_cost', (int) round((float) ($part->cost_price ?? 0)));
+                                                $isOwner = auth()->user()?->isOwner() ?? false;
+                                                $set('unit_cost', $isOwner ? (int) round((float) ($part->cost_price ?? 0)) : 0);
                                                 $set('bin_location_snapshot', $part->bin_location);
                                             }
                                         }
@@ -180,6 +181,8 @@ class GoodsReceiptResource extends Resource
                                     ->stripCharacters('.')
                                     ->numeric()
                                     ->default(0)
+                                    ->visible(fn (): bool => auth()->user()?->isOwner() ?? false)
+                                    ->dehydrated(fn (): bool => auth()->user()?->isOwner() ?? false)
                                     ->columnSpan(['default' => 6, 'md' => 2]),
 
                                 Forms\Components\TextInput::make('bin_location_snapshot')

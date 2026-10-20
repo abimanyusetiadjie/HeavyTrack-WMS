@@ -25,25 +25,25 @@ class WarehouseResource extends Resource
     {
         $user = auth()->user();
         if (!$user) return false;
-        return $user->hasRole('Admin') || $user->hasRole('Gudang') || $user->hasRole('Kasir') || $user->id === 1;
+        return $user->isOwner() || $user->isAdmin();
     }
 
     public static function canCreate(): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->id === 1);
+        return $user && ($user->isOwner() || $user->isAdmin());
     }
 
     public static function canEdit($record): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->id === 1);
+        return $user && ($user->isOwner() || $user->isAdmin());
     }
 
     public static function canDelete($record): bool
     {
         $user = auth()->user();
-        return $user && ($user->hasRole('Admin') || $user->id === 1);
+        return $user && ($user->isOwner() || $user->isAdmin());
     }
 
     public static function form(Schema $schema): Schema

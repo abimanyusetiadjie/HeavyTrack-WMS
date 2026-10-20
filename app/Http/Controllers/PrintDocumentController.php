@@ -12,7 +12,7 @@ class PrintDocumentController extends Controller
     public function printDeliveryOrder(DeliveryOrder $deliveryOrder)
     {
         $user = auth()->user();
-        abort_unless($user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->hasRole('Kasir') || $user->id === 1), 403, 'Anda tidak memiliki akses untuk mencetak Surat Jalan ini.');
+        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Surat Jalan ini.');
 
         $deliveryOrder->load(['items.part.brand', 'contact', 'warehouse', 'creator']);
         
@@ -25,7 +25,7 @@ class PrintDocumentController extends Controller
     public function printInvoiceFromDeliveryOrder(DeliveryOrder $deliveryOrder)
     {
         $user = auth()->user();
-        abort_unless($user && ($user->hasRole('Admin') || $user->hasRole('Kasir') || $user->hasRole('Gudang') || $user->id === 1), 403, 'Anda tidak memiliki akses untuk mencetak Faktur.');
+        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Faktur.');
 
         // 1. Cek apakah sudah ada faktur terkait Surat Jalan ini
         $invoice = Invoice::where('delivery_order_id', $deliveryOrder->id)->latest()->first();
@@ -92,7 +92,7 @@ class PrintDocumentController extends Controller
     public function printInvoice(Invoice $invoice)
     {
         $user = auth()->user();
-        abort_unless($user && ($user->hasRole('Admin') || $user->hasRole('Kasir') || $user->id === 1), 403, 'Anda tidak memiliki akses untuk mencetak Faktur keuangan.');
+        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Faktur keuangan.');
 
         $invoice->load(['items', 'contact', 'creator', 'deliveryOrder']);
         $pdf = Pdf::loadView('print.invoice', ['invoice' => $invoice])->setPaper('a4', 'portrait');
@@ -102,7 +102,7 @@ class PrintDocumentController extends Controller
     public function printReceipt(Invoice $invoice)
     {
         $user = auth()->user();
-        abort_unless($user && ($user->hasRole('Admin') || $user->hasRole('Kasir') || $user->id === 1), 403, 'Anda tidak memiliki akses untuk mencetak Kwitansi keuangan.');
+        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Kwitansi keuangan.');
 
         $invoice->load(['payments', 'contact']);
         $pdf = Pdf::loadView('print.receipt', ['invoice' => $invoice])->setPaper('a5', 'landscape');
@@ -112,7 +112,7 @@ class PrintDocumentController extends Controller
     public function printGoodsReceipt(\App\Models\GoodsReceipt $goodsReceipt)
     {
         $user = auth()->user();
-        abort_unless($user && ($user->hasRole('Admin') || $user->hasRole('Gudang') || $user->id === 1), 403, 'Anda tidak memiliki akses untuk mencetak LPB ini.');
+        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak LPB ini.');
 
         $goodsReceipt->load(['items.part.brand', 'contact', 'warehouse', 'creator']);
         $pdf = Pdf::loadView('print.goods-receipt', ['gr' => $goodsReceipt])->setPaper('a4', 'portrait');

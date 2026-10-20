@@ -24,7 +24,7 @@ class StockLedgerResource extends Resource
     {
         $user = auth()->user();
         if (!$user) return false;
-        return $user->hasRole('Admin') || $user->hasRole('Gudang') || $user->hasRole('Kasir') || $user->id === 1;
+        return $user->isOwner() || $user->isAdmin();
     }
 
     public static function canCreate(): bool
