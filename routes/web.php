@@ -8,7 +8,9 @@ Route::get('/', function () {
 });
 
 // Fallback named route 'login' untuk mencegah 500 error dari middleware auth bawaan Laravel
-Route::redirect('/login', '/admin/login')->name('login');
+Route::get('/login', function () {
+    return redirect('/admin/login');
+})->name('login');
 
 Route::get('/print/delivery-order/{deliveryOrder}', [PrintDocumentController::class, 'printDeliveryOrder'])
     ->name('print.delivery-order')
