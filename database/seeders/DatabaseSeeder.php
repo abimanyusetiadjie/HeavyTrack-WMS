@@ -18,31 +18,27 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Roles
+        // 1. Roles (Hanya 2 role: Owner dan Admin)
+        $ownerRole = Role::firstOrCreate(['name' => 'Owner']);
         $adminRole = Role::firstOrCreate(['name' => 'Admin']);
-        $gudangRole = Role::firstOrCreate(['name' => 'Gudang']);
-        $kasirRole = Role::firstOrCreate(['name' => 'Kasir']);
 
         // 2. Users (Gunakan password aman)
-        $defaultPassword = Hash::make(env('DEFAULT_ADMIN_PASSWORD', 'HeavyTrack@2026!'));
+        $defaultOwnerPassword = Hash::make(env('DEFAULT_OWNER_PASSWORD', 'OwnerHeavyTrack@2026!'));
+        $owner = User::firstOrCreate(
+            ['email' => 'owner@heavytrack.com'],
+            ['name' => 'Owner', 'password' => $defaultOwnerPassword]
+        );
+        $owner->syncRoles([$ownerRole]);
 
+        $defaultAdminPassword = Hash::make(env('DEFAULT_ADMIN_PASSWORD', 'HeavyTrack@2026!'));
         $admin = User::firstOrCreate(
             ['email' => 'admin@heavytrack.com'],
-            ['name' => 'Super Admin', 'password' => $defaultPassword]
+            ['name' => 'Admin Operasional', 'password' => $defaultAdminPassword]
         );
         $admin->syncRoles([$adminRole]);
 
-        $gudang = User::firstOrCreate(
-            ['email' => 'gudang@heavytrack.com'],
-            ['name' => 'Kepala Gudang', 'password' => $defaultPassword]
-        );
-        $gudang->syncRoles([$gudangRole]);
-
-        $kasir = User::firstOrCreate(
-            ['email' => 'kasir@heavytrack.com'],
-            ['name' => 'Kasir Utama', 'password' => $defaultPassword]
-        );
-        $kasir->syncRoles([$kasirRole]);
+        // Hapus role lama yang tidak terpakai
+        Role::whereNotIn('name', ['Owner', 'Admin'])->delete();
 
         // 3. Warehouses (Gudang Fisik)
         $wPusat = Warehouse::firstOrCreate(
