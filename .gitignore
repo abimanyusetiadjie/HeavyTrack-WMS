@@ -28,5 +28,9 @@ Thumbs.db
 
 *.sql
 *.bat
+!JALANKAN_SISTEM.bat
+!setup-offline.bat
+!backup-daily.bat
+!ambil-db-railway.bat
 .env.offline
 dump-railway.php
