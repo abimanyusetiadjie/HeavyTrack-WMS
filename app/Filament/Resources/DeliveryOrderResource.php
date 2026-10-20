@@ -100,7 +100,8 @@ class DeliveryOrderResource extends Resource
                             ])
                             ->required()
                             ->reactive()
-                            ->searchable(),
+                            ->searchable()
+                            ->disabled(fn (?DeliveryOrder $record) => in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true)),
                             
                         Forms\Components\Select::make('contact_id')
                             ->label('Pelanggan / Tujuan')
@@ -139,7 +140,9 @@ class DeliveryOrderResource extends Resource
                     ])->columns(['default' => 1, 'md' => 2, 'lg' => 3]),
 
                 Section::make('Daftar Barang (Item)')
-                    ->description('Daftar sparepart yang dikeluarkan dari gudang untuk dikirim.')
+                    ->description(fn (?DeliveryOrder $record) => in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true)
+                        ? 'Daftar sparepart telah dikonfirmasi dan memotong stok gudang (Terkunci untuk menjaga integritas stok).'
+                        : 'Daftar sparepart yang dikeluarkan dari gudang untuk dikirim.')
                     ->columnSpanFull()
                     ->schema([
                         Forms\Components\Repeater::make('items')
@@ -148,6 +151,8 @@ class DeliveryOrderResource extends Resource
                             ->relationship()
                             ->minItems(1)
                             ->required()
+                            ->disabled(fn (?DeliveryOrder $record) => in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true))
+                            ->dehydrated(fn (?DeliveryOrder $record) => !in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true))
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')

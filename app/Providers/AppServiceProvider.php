@@ -22,8 +22,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         \Illuminate\Database\Eloquent\Model::unguard();
-        // Force HTTPS on cloud (Railway) or when FORCE_HTTPS=true, allowing HTTP on offline Windows LAN
-        if (env('FORCE_HTTPS', isset($_SERVER['RAILWAY_ENVIRONMENT']))) {
+
+        // Force HTTPS on cloud (Railway) or when force_https is enabled, allowing HTTP on offline Windows LAN
+        if (config('app.force_https') || isset($_SERVER['RAILWAY_ENVIRONMENT']) || str_starts_with((string) config('app.url'), 'https://')) {
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 

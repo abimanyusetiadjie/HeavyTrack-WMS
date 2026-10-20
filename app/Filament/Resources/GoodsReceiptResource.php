@@ -13,6 +13,7 @@ use Filament\Tables\Table;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Illuminate\Database\Eloquent\Builder;
 
 class GoodsReceiptResource extends Resource
 {
@@ -93,7 +94,8 @@ class GoodsReceiptResource extends Resource
                                 Forms\Components\Textarea::make('address')->label('Alamat')->maxLength(500),
                             ])
                             ->required()
-                            ->searchable(),
+                            ->searchable()
+                            ->disabled(fn (?GoodsReceipt $record) => $record?->status === 'RECEIVED'),
 
                         Forms\Components\Select::make('contact_id')
                             ->label('Pemasok / Supplier')
@@ -130,7 +132,9 @@ class GoodsReceiptResource extends Resource
                     ])->columns(['default' => 1, 'md' => 2, 'lg' => 3]),
 
                 Section::make('Daftar Barang Masuk')
-                    ->description('Rincian sparepart yang diterima masuk ke gudang.')
+                    ->description(fn (?GoodsReceipt $record) => $record?->status === 'RECEIVED'
+                        ? 'Rincian sparepart telah diterima dan menambah saldo stok gudang (Terkunci untuk menjaga integritas stok).'
+                        : 'Rincian sparepart yang diterima masuk ke gudang.')
                     ->columnSpanFull()
                     ->schema([
                         Forms\Components\Repeater::make('items')
@@ -139,6 +143,8 @@ class GoodsReceiptResource extends Resource
                             ->relationship()
                             ->minItems(1)
                             ->required()
+                            ->disabled(fn (?GoodsReceipt $record) => $record?->status === 'RECEIVED')
+                            ->dehydrated(fn (?GoodsReceipt $record) => $record?->status !== 'RECEIVED')
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
@@ -280,5 +286,10 @@ class GoodsReceiptResource extends Resource
             'create' => Pages\CreateGoodsReceipt::route('/create'),
             'edit' => Pages\EditGoodsReceipt::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['contact', 'warehouse']);
     }
 }

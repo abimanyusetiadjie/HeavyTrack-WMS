@@ -18,6 +18,20 @@ class Part extends Model
     ];
 
     /**
+     * Domain Model Lifecycle Hook:
+     * Menjamin clean_part_number selalu terisi dan tersinkronisasi dengan part_number
+     * tanpa tergantung apakah data diinput melalui UI, Seeder, atau API.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Part $part) {
+            if ($part->isDirty('part_number') || empty($part->clean_part_number)) {
+                $part->clean_part_number = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) ($part->part_number ?? '')));
+            }
+        });
+    }
+
+    /**
      * Data Masking Server-Side (RBAC Lapis Backend):
      * Jika pengguna login BUKAN Owner, nilai cost_price (HPP / Modal) disensor menjadi 0.00
      * sehingga browser/inspect element/network tab tidak pernah menerima data harga modal asli.

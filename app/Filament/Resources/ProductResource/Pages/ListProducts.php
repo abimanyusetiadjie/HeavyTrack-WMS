@@ -27,6 +27,11 @@ class ListProducts extends ListRecords
         $this->resetPage();
     }
 
+    public function getCategories(): \Illuminate\Database\Eloquent\Collection
+    {
+        return \App\Models\Category::orderBy('name')->get();
+    }
+
     protected function getHeaderActions(): array
     {
         return [

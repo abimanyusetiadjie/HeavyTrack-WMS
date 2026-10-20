@@ -15,6 +15,7 @@ use Filament\Tables\Table;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Illuminate\Database\Eloquent\Builder;
 
 class InvoiceResource extends Resource
 {
@@ -525,5 +526,10 @@ class InvoiceResource extends Resource
             'create' => Pages\CreateInvoice::route('/create'),
             'edit' => Pages\EditInvoice::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['contact', 'deliveryOrder']);
     }
 }

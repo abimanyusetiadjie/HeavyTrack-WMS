@@ -9,6 +9,7 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class StockLedgerResource extends Resource
 {
@@ -134,5 +135,10 @@ class StockLedgerResource extends Resource
         return [
             'index' => Pages\ListStockLedgers::route('/'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['part', 'warehouse', 'creator']);
     }
 }

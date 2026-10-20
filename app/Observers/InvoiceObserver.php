@@ -9,18 +9,13 @@ class InvoiceObserver
 {
     public function updating(Invoice $invoice): void
     {
-        // Allow updating if it's changing TO paid or updating paid_amount internally.
-        // But if it was already PAID and we're trying to change something else, block it.
-        
         $originalStatus = $invoice->getOriginal('status');
         
+        // Faktur yang sudah berstatus PAID tidak boleh dimanipulasi data keuangannya
         if ($originalStatus === 'PAID') {
-            // Check if only certain fields changed, or block completely
-            // Usually, we want to block completely. But Filament form disabled() already prevents user changes.
-            // As an extra DB-level check (for API / code), we block updates if already PAID.
-            
-            // Allow if just touching timestamps
-            if ($invoice->isDirty() && !$invoice->isDirty('updated_at') || count($invoice->getDirty()) > 1) {
+            $dirtyKeys = array_keys($invoice->getDirty());
+            // Hanya izinkan perubahan jika semata-mata menyentuh timestamp updated_at
+            if (!empty(array_diff($dirtyKeys, ['updated_at']))) {
                 throw new Exception('Faktur yang sudah lunas (PAID) tidak dapat diubah.');
             }
         }

@@ -6,6 +6,7 @@ use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PrintDocumentController extends Controller
 {
@@ -27,16 +28,27 @@ class PrintDocumentController extends Controller
         $user = auth()->user();
         abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Faktur.');
 
-        // 1. Cek apakah sudah ada faktur terkait Surat Jalan ini
-        $invoice = Invoice::where('delivery_order_id', $deliveryOrder->id)->latest()->first();
+        // Transaksionalitas & Pencegahan Race Condition:
+        // Gunakan DB transaction + row-level lock agar tidak terjadi faktur duplikat jika 2 kasir klik bersamaan
+        $invoice = DB::transaction(function () use ($deliveryOrder, $user) {
+            $existing = Invoice::where('delivery_order_id', $deliveryOrder->id)
+                ->lockForUpdate()
+                ->latest()
+                ->first();
 
-        // 2. Jika belum ada, otomatis terbitkan faktur baru dari rincian Surat Jalan
-        if (!$invoice) {
+            if ($existing) {
+                return $existing;
+            }
+
             $deliveryOrder->load(['items.part' => fn ($q) => $q->withTrashed(), 'contact']);
-            
             abort_if($deliveryOrder->items->isEmpty(), 400, 'Surat Jalan belum memiliki rincian barang. Silakan isi barang pada Surat Jalan terlebih dahulu.');
 
-            $count = Invoice::withTrashed()->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() + 1;
+            $count = Invoice::withTrashed()
+                ->whereMonth('created_at', date('m'))
+                ->whereYear('created_at', date('Y'))
+                ->lockForUpdate()
+                ->count() + 1;
+
             $invoiceNumber = 'INV/' . date('Ym') . '/' . str_pad($count, 4, '0', STR_PAD_LEFT);
 
             $subtotal = 0;
@@ -58,11 +70,7 @@ class PrintDocumentController extends Controller
                 ];
             }
 
-            $taxPercent = 0;
-            $taxAmount = 0;
-            $grandTotal = $subtotal;
-
-            $invoice = Invoice::create([
+            $createdInvoice = Invoice::create([
                 'invoice_number' => $invoiceNumber,
                 'delivery_order_id' => $deliveryOrder->id,
                 'contact_id' => $deliveryOrder->contact_id,
@@ -71,18 +79,20 @@ class PrintDocumentController extends Controller
                 'status' => 'UNPAID',
                 'subtotal' => $subtotal,
                 'discount_amount' => 0,
-                'tax_percent' => $taxPercent,
-                'tax_amount' => $taxAmount,
-                'grand_total' => $grandTotal,
+                'tax_percent' => 0,
+                'tax_amount' => 0,
+                'grand_total' => $subtotal,
                 'paid_amount' => 0,
                 'created_by' => $user->id ?? 1,
             ]);
 
             foreach ($itemsData as $data) {
-                $data['invoice_id'] = $invoice->id;
+                $data['invoice_id'] = $createdInvoice->id;
                 \App\Models\InvoiceItem::create($data);
             }
-        }
+
+            return $createdInvoice;
+        });
 
         $invoice->load(['items', 'contact', 'creator', 'deliveryOrder']);
         $pdf = Pdf::loadView('print.invoice', ['invoice' => $invoice])->setPaper('a4', 'portrait');

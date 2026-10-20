@@ -14,11 +14,11 @@ class BackupSystem extends Command
     {
         $this->info('Memulai proses backup database MySQL/MariaDB...');
         
-        $db = env('DB_DATABASE');
-        $user = env('DB_USERNAME');
-        $pass = env('DB_PASSWORD');
-        $host = env('DB_HOST');
-        $port = env('DB_PORT', 3306);
+        $db = config('database.connections.mysql.database');
+        $user = config('database.connections.mysql.username');
+        $pass = config('database.connections.mysql.password');
+        $host = config('database.connections.mysql.host');
+        $port = config('database.connections.mysql.port', 3306);
         
         $date = now()->format('Y-m-d_H-i-s');
         $backupDir = storage_path('app/backups');
