@@ -159,7 +159,6 @@ class GoodsReceiptResource extends Resource
                             ->minItems(1)
                             ->required()
                             ->disabled(fn (?GoodsReceipt $record) => $record?->status === 'RECEIVED')
-                            ->dehydrated(fn (?GoodsReceipt $record) => $record?->status !== 'RECEIVED')
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')

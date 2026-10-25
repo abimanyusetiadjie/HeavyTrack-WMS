@@ -167,7 +167,6 @@ class DeliveryOrderResource extends Resource
                             ->minItems(1)
                             ->required()
                             ->disabled(fn (?DeliveryOrder $record) => in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true))
-                            ->dehydrated(fn (?DeliveryOrder $record) => !in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true))
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
