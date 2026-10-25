@@ -3,10 +3,12 @@ setlocal EnableDelayedExpansion
 title HeavyTrack WMS - Mitra Abadi Nusantara (Sistem Toko & Pergudangan)
 color 0A
 
-:: Pastikan berjalan di folder project
+:: Pastikan selalu berjalan di folder project
 cd /d "%~dp0"
 
+:: ----------------------------------------------------------------------------
 :: 1. Deteksi Path PHP & MySQL (Laragon di C: atau D:, atau XAMPP)
+:: ----------------------------------------------------------------------------
 set "LARAGON_ROOT=C:\laragon"
 if exist "D:\laragon" set "LARAGON_ROOT=D:\laragon"
 
@@ -42,57 +44,68 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-:: 2. DETEKSI OTOMATIS: APAKAH SISTEM SUDAH PERNAH DI-SETUP?
-set "NEED_SETUP=0"
-
-if not exist ".env" set "NEED_SETUP=1"
-if not exist "storage\framework\views" set "NEED_SETUP=1"
-
-:: Cek apakah database dan environment sudah siap digunakan
-if "!NEED_SETUP!"=="0" (
-    php -r "require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); try { \Illuminate\Support\Facades\DB::connection()->getPdo(); } catch (\Throwable $e) { exit(1); }" 2>nul
-    if !ERRORLEVEL! NEQ 0 (
-        set "NEED_SETUP=1"
-    )
-)
-
-:: Jika belum di-setup, jalankan wizard setup otomatis di latar belakang
-if "!NEED_SETUP!"=="1" (
-    cls
-    echo ============================================================================
-    echo   HEAVYTRACK WMS - PERSIAPAN SISTEM OTOMATIS (FIRST-TIME SETUP)
-    echo ============================================================================
-    echo.
-    echo   [INFO] Sistem mendeteksi komputer ini belum di-setup atau database belum aktif.
-    echo   Sedang melakukan konfigurasi otomatis... Harap tunggu sebentar...
-    echo.
-    call setup-offline.bat auto
-    cls
-)
-
-:: 3. CEK APAKAH MYSQL LARAGON SUDAH MENYALA (JIKA PAKAI MYSQL)
-php -r "require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); if (config('database.default') === 'mysql') exit(1); exit(0);" 2>nul
-if %ERRORLEVEL% NEQ 0 (
-    netstat -ano | findstr ":3306" >nul 2>nul
-    if !ERRORLEVEL! NEQ 0 (
-        color 0E
+:: ----------------------------------------------------------------------------
+:: 2. DETEKSI STATUS SETUP (HANYA BERJALAN 1 KALI SEUMUR HIDUP DI PC BARU)
+:: ----------------------------------------------------------------------------
+:: Jika file .setup_done sudah ada, MAKA SETUP DILEWATI 100% DAN TIDAK AKAN DIJALANKAN LAGI!
+if not exist ".setup_done" (
+    if not exist ".env" (
+        cls
         echo ============================================================================
-        echo   [PERINGATAN] SERVICE MYSQL BELUM DIAKTIFKAN DI LARAGON!
-        echo ============================================================================
-        echo   Laragon Anda belum menyalakan database MySQL.
-        echo   Silakan buka aplikasi LARAGON lalu klik tombol: [Start All]
+        echo   HEAVYTRACK WMS - PERSIAPAN SISTEM AWAL (HANYA 1 KALI DI PC INI)
         echo ============================================================================
         echo.
-        if exist "%LARAGON_ROOT%\laragon.exe" (
-            echo   Membuka aplikasi Laragon untuk Anda...
-            start "" "%LARAGON_ROOT%\laragon.exe"
-        )
-        echo   Tekan tombol apa saja setelah mengklik 'Start All' di Laragon...
-        pause >nul
+        echo   Sistem mendeteksi komputer ini baru pertama kali dipasang.
+        echo   Menyiapkan konfigurasi otomatis... Harap tunggu sebentar...
+        echo.
+        call setup-offline.bat auto
+        echo SETUP_COMPLETED on %DATE% %TIME% > ".setup_done"
+        cls
+    ) else (
+        echo SETUP_COMPLETED on %DATE% %TIME% > ".setup_done"
     )
 )
 
-:: 4. Deteksi IP Lokal untuk akses via HP / Tablet di Wi-Fi Toko
+:: ----------------------------------------------------------------------------
+:: 3. CEK KONEKSI MYSQL (HANYA JIKA .env DISET MENGGUNAKAN MYSQL)
+:: ----------------------------------------------------------------------------
+if exist ".env" (
+    findstr /i "DB_CONNECTION=mysql" .env >nul 2>nul
+    if !ERRORLEVEL! EQU 0 (
+        netstat -ano | findstr ":3306" >nul 2>nul
+        if !ERRORLEVEL! NEQ 0 (
+            color 0E
+            echo ============================================================================
+            echo   [INFO] Menunggu database MySQL aktif...
+            echo ============================================================================
+            net start mysql >nul 2>nul
+            timeout /t 2 >nul
+            netstat -ano | findstr ":3306" >nul 2>nul
+            if !ERRORLEVEL! NEQ 0 (
+                echo   Membuka aplikasi Laragon...
+                if exist "%LARAGON_ROOT%\laragon.exe" (
+                    start "" "%LARAGON_ROOT%\laragon.exe"
+                )
+                echo.
+                echo   Silakan klik tombol [Start All] di Laragon,
+                echo   lalu tekan sembarang tombol di sini untuk melanjutkan...
+                pause >nul
+                color 0A
+            )
+        )
+    )
+)
+
+:: ----------------------------------------------------------------------------
+:: 4. BERSIHKAN PORT 8000 JIKA MASIH TERTINGGAL DARI SESI SEBELUMNYA
+:: ----------------------------------------------------------------------------
+for /f "tokens=5" %%p in ('netstat -aon 2^>nul ^| findstr ":8000" ^| findstr "LISTENING"') do (
+    taskkill /F /PID %%p >nul 2>nul
+)
+
+:: ----------------------------------------------------------------------------
+:: 5. DETEKSI IP LOKAL UNTUK AKSES VIA HP / TABLET DI WI-FI TOKO
+:: ----------------------------------------------------------------------------
 set "LOCAL_IP=127.0.0.1"
 for /f "tokens=4" %%a in ('route print 0.0.0.0 2^>nul ^| findstr "0.0.0.0.*0.0.0.0"') do (
     set "LOCAL_IP=%%a"
@@ -120,7 +133,7 @@ echo   - Role Kasir : Username = admin  ^| Password = 12345678
 echo.
 echo ============================================================================
 echo   PERINGATAN: JANGAN TUTUP JENDELA HITAM INI SELAMA APLIKASI DIGUNAKAN!
-echo   (Jika ingin mematikan sistem, tekan tombol silang [X] atau Ctrl+C)
+echo   (Jika ingin mematikan sistem saat tutup toko, cukup tutup jendela ini [X])
 echo ============================================================================
 echo.
 

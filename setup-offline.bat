@@ -3,14 +3,33 @@ setlocal EnableDelayedExpansion
 title HeavyTrack WMS - Setup & Validasi Offline (Laragon Windows)
 color 0A
 
-echo ============================================================================
-echo   HEAVYTRACK WMS - MITRA ABADI NUSANTARA
-echo   Automated Offline Migration ^& Setup Wizard (Windows / Laragon)
-echo ============================================================================
-echo.
-
 :: Pastikan berjalan di direktori tempat file .bat ini berada
 cd /d "%~dp0"
+
+:: ----------------------------------------------------------------------------
+:: 0. CEK APAKAH SUDAH PERNAH DI-SETUP SEBELUMNYA
+:: ----------------------------------------------------------------------------
+if exist ".setup_done" if not "%1"=="force" if not "%1"=="auto" (
+    echo ============================================================================
+    echo   HEAVYTRACK WMS - MITRA ABADI NUSANTARA
+    echo ============================================================================
+    echo.
+    echo   [INFO] Sistem ini SUDAH PERNAH DI-SETUP sebelumnya di komputer ini!
+    echo   Anda TIDAK PERLU menjalankan file 'setup-offline.bat' ini lagi.
+    echo.
+    echo   Untuk operasional sehari-hari, cukup klik ganda file:
+    echo   --^> JALANKAN_SISTEM.bat
+    echo.
+    echo ============================================================================
+    echo.
+    set /p FORCE_AGAIN="Apakah Anda sengaja ingin melakukan SETUP ULANG dari nol? (Y/N): "
+    if /i not "!FORCE_AGAIN!"=="Y" (
+        echo [INFO] Membatalkan proses. Silakan buka 'JALANKAN_SISTEM.bat'.
+        timeout /t 3 >nul
+        exit /b 0
+    )
+    cls
+)
 
 :: ----------------------------------------------------------------------------
 :: 1. DETEKSI OTOMATIS PATH PHP & MYSQL LARAGON (Jika diklik 2x dari Explorer)
@@ -204,6 +223,10 @@ echo [TAHAP 7/7] Memvalidasi Integritas Data di Database Lokal...
 echo ----------------------------------------------------------------------------
 php artisan tinker --execute="echo '  - Total User             : ' . \App\Models\User::count() . PHP_EOL . '  - Total Master Part      : ' . \App\Models\Part::count() . PHP_EOL . '  - Total Gudang (WH)      : ' . \App\Models\Warehouse::count() . PHP_EOL . '  - Total Kontak/Klien     : ' . \App\Models\Contact::count() . PHP_EOL . '  - Total Goods Receipt    : ' . \App\Models\GoodsReceipt::count() . PHP_EOL . '  - Total Surat Jalan (DO) : ' . \App\Models\DeliveryOrder::count() . PHP_EOL . '  - Total Faktur (Invoice) : ' . \App\Models\Invoice::count() . PHP_EOL . '  - Total Saldo Stok Fisik : ' . number_format((float)\App\Models\StockBalance::sum('qty_on_hand'), 0, ',', '.') . PHP_EOL;"
 echo ----------------------------------------------------------------------------
+
+:: Buat file penanda permanen bahwa setup telah selesai
+echo SETUP_COMPLETED on %DATE% %TIME% > "%~dp0.setup_done"
+echo [OK] Tanda setup berhasil (.setup_done) telah disimpan.
 
 echo.
 echo ============================================================================
