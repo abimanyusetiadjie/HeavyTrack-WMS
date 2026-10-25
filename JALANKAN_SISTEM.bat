@@ -47,7 +47,6 @@ if %ERRORLEVEL% NEQ 0 (
 :: ----------------------------------------------------------------------------
 :: 2. DETEKSI STATUS SETUP (HANYA BERJALAN 1 KALI SEUMUR HIDUP DI PC BARU)
 :: ----------------------------------------------------------------------------
-:: Jika file .setup_done sudah ada, MAKA SETUP DILEWATI 100% DAN TIDAK AKAN DIJALANKAN LAGI!
 if not exist ".setup_done" (
     if not exist ".env" (
         cls
@@ -67,7 +66,15 @@ if not exist ".setup_done" (
 )
 
 :: ----------------------------------------------------------------------------
-:: 3. CEK KONEKSI MYSQL (HANYA JIKA .env DISET MENGGUNAKAN MYSQL)
+:: 3. PASTIKAN CACHE PRODUKSI SUDAH AKTIF (AGAR LOADING SUPER CEPAT)
+:: ----------------------------------------------------------------------------
+if not exist "bootstrap\cache\config.php" (
+    echo [INFO] Mengoptimalkan kecepatan sistem...
+    call php artisan optimize >nul 2>nul
+)
+
+:: ----------------------------------------------------------------------------
+:: 4. CEK KONEKSI MYSQL (HANYA JIKA .env DISET MENGGUNAKAN MYSQL)
 :: ----------------------------------------------------------------------------
 if exist ".env" (
     findstr /i "DB_CONNECTION=mysql" .env >nul 2>nul
@@ -97,14 +104,14 @@ if exist ".env" (
 )
 
 :: ----------------------------------------------------------------------------
-:: 4. BERSIHKAN PORT 8000 JIKA MASIH TERTINGGAL DARI SESI SEBELUMNYA
+:: 5. BERSIHKAN PORT 8000 JIKA MASIH TERTINGGAL DARI SESI SEBELUMNYA
 :: ----------------------------------------------------------------------------
 for /f "tokens=5" %%p in ('netstat -aon 2^>nul ^| findstr ":8000" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%p >nul 2>nul
 )
 
 :: ----------------------------------------------------------------------------
-:: 5. DETEKSI IP LOKAL UNTUK AKSES VIA HP / TABLET DI WI-FI TOKO
+:: 6. DETEKSI IP LOKAL UNTUK AKSES VIA HP / TABLET DI WI-FI TOKO
 :: ----------------------------------------------------------------------------
 set "LOCAL_IP=127.0.0.1"
 for /f "tokens=4" %%a in ('route print 0.0.0.0 2^>nul ^| findstr "0.0.0.0.*0.0.0.0"') do (
@@ -117,11 +124,11 @@ echo   HEAVYTRACK WMS - MITRA ABADI NUSANTARA
 echo   Sistem Manajemen Stok Sparepart ^& Dokumen Faktur / Surat Jalan
 echo ============================================================================
 echo.
-echo   [STATUS] Server Lokal OFFLINE Aktif dan Berjalan!
+echo   [STATUS] Server Lokal OFFLINE Aktif dan Berjalan Cepat!
 echo.
 echo   ----------------------------------------------------------------------
 echo   AKSES DARI KOMPUTER INI:
-echo   --^> Buka Browser: http://localhost:8000/admin
+echo   --^> Buka Browser: http://127.0.0.1:8000/admin
 echo.
 echo   AKSES DARI HP / LAPTOP LAIN (Wi-Fi Toko):
 echo   --^> Buka Browser: http://!LOCAL_IP!:8000/admin
@@ -137,8 +144,11 @@ echo   (Jika ingin mematikan sistem saat tutup toko, cukup tutup jendela ini [X]
 echo ============================================================================
 echo.
 
-:: Otomatis buka browser default ke halaman login admin
-start "" "http://localhost:8000/admin"
+:: Otomatis buka browser default ke alamat IP 127.0.0.1 (Menghindari delay IPv6 localhost)
+start "" "http://127.0.0.1:8000/admin"
+
+:: Aktifkan Multi-Worker PHP Server agar bisa memproses beberapa asset bersamaan
+set PHP_CLI_SERVER_WORKERS=4
 
 :: Jalankan server lokal Laravel
 php artisan serve --host=0.0.0.0 --port=8000
