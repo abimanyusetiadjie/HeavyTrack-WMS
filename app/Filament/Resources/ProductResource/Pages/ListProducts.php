@@ -54,6 +54,15 @@ class ListProducts extends ListRecords
                 ->action(function (array $data) {
                     $part = Part::find($data['part_id']);
                     if ($part) {
+                        if ($part->stockBalances()->where('qty_on_hand', '>', 0)->exists()) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Produk Tidak Dapat Dihapus')
+                                ->body("Produk '{$part->name}' masih memiliki saldo stok fisik di gudang. Harap kosongkan stok terlebih dahulu sebelum menghapus.")
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
                         $part->delete();
                         \Filament\Notifications\Notification::make()
                             ->title('Produk Berhasil Dihapus')

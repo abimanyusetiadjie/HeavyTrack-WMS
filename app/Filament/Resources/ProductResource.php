@@ -189,7 +189,7 @@ class ProductResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->badge()
-                    ->color(fn ($state) => ($state === null || (float) $state < 100) ? 'danger' : 'success')
+                    ->color(fn ($state, Part $record) => ($state === null || (float) $state <= ($record->min_stock_level ?? 5)) ? 'danger' : 'success')
                     ->formatStateUsing(fn ($state, Part $record) => number_format((float) ($state ?? 0), 0, ',', '.') . ' ' . ($record->unit ?? 'PCS')),
                     
                 Tables\Columns\IconColumn::make('is_active')
@@ -198,6 +198,9 @@ class ProductResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
+                Tables\Filters\Filter::make('low_stock')
+                    ->label('Stok Menipis (<= Batas Minimum)')
+                    ->query(fn (Builder $query) => $query->whereRaw('(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= parts.min_stock_level')),
             ])
             ->actions([
                 \Filament\Actions\Action::make('adjustStock')
@@ -209,9 +212,9 @@ class ProductResource extends Resource
                     ->form([
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang')
-                            ->options(fn () => \App\Models\Warehouse::pluck('name', 'id'))
+                            ->options(fn () => \App\Models\Warehouse::where('is_active', true)->pluck('name', 'id'))
                             ->required()
-                            ->default(fn () => \App\Models\Warehouse::first()?->id),
+                            ->default(fn () => \App\Models\Warehouse::where('is_active', true)->first()?->id),
                         Forms\Components\Select::make('type')
                             ->label('Tipe Penyesuaian')
                             ->options([

@@ -132,9 +132,15 @@
                 <td style="text-align: right; color: red;">- Rp {{ number_format((float) $invoice->discount_amount, 0, ',', '.') }}</td>
             </tr>
             @endif
+            @if(($invoice->tax_amount ?? 0) > 0)
+            <tr>
+                <td>PPN ({{ $invoice->tax_percent ?? 11 }}%)</td>
+                <td style="text-align: right;">+ Rp {{ number_format((float) $invoice->tax_amount, 0, ',', '.') }}</td>
+            </tr>
+            @endif
             <tr style="border-top: 2px solid #0f172a; font-weight: bold; font-size: 13px;">
                 <td>TOTAL TAGIHAN</td>
-                <td style="text-align: right;">Rp {{ number_format(max(0, (float) ($invoice->subtotal ?? 0) - (float) ($invoice->discount_amount ?? 0)), 0, ',', '.') }}</td>
+                <td style="text-align: right;">Rp {{ number_format((float) ($invoice->grand_total ?? 0), 0, ',', '.') }}</td>
             </tr>
             @if(($invoice->paid_amount ?? 0) > 0)
             <tr style="color: green;">
@@ -143,7 +149,7 @@
             </tr>
             <tr style="font-weight: bold;">
                 <td>Sisa Tagihan</td>
-                <td style="text-align: right;">Rp {{ number_format(max(0, max(0, (float) ($invoice->subtotal ?? 0) - (float) ($invoice->discount_amount ?? 0)) - (float) $invoice->paid_amount), 0, ',', '.') }}</td>
+                <td style="text-align: right;">Rp {{ number_format(max(0, (float) ($invoice->grand_total ?? 0) - (float) ($invoice->paid_amount ?? 0)), 0, ',', '.') }}</td>
             </tr>
             @endif
         </table>

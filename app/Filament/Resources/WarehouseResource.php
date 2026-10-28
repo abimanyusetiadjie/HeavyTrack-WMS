@@ -114,11 +114,38 @@ class WarehouseResource extends Resource
             ])
             ->actions([
                 \Filament\Actions\EditAction::make()->label('Ubah')->size('sm'),
-                \Filament\Actions\DeleteAction::make()->label('Hapus')->size('sm'),
+                \Filament\Actions\DeleteAction::make()
+                    ->label('Hapus')
+                    ->size('sm')
+                    ->before(function (Warehouse $record, \Filament\Actions\DeleteAction $action) {
+                        if ($record->stockBalances()->where('qty_on_hand', '>', 0)->exists()) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Gudang Tidak Dapat Dihapus')
+                                ->body("Gudang '{$record->name}' masih memiliki saldo stok fisik barang. Pindahkan atau kosongkan stok terlebih dahulu sebelum menghapus gudang.")
+                                ->danger()
+                                ->persistent()
+                                ->send();
+                            $action->halt();
+                        }
+                    }),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make()->label('Hapus Terpilih'),
+                    \Filament\Actions\DeleteBulkAction::make()
+                        ->label('Hapus Terpilih')
+                        ->before(function (\Illuminate\Database\Eloquent\Collection $records, \Filament\Actions\DeleteBulkAction $action) {
+                            foreach ($records as $record) {
+                                if ($record->stockBalances()->where('qty_on_hand', '>', 0)->exists()) {
+                                    \Filament\Notifications\Notification::make()
+                                        ->title('Gudang Tidak Dapat Dihapus')
+                                        ->body("Salah satu gudang terpilih ('{$record->name}') masih memiliki saldo stok fisik barang. Operasi dibatalkan.")
+                                        ->danger()
+                                        ->persistent()
+                                        ->send();
+                                    $action->halt();
+                                }
+                            }
+                        }),
                 ])->label('Aksi Masal'),
             ]);
     }

@@ -102,7 +102,7 @@ class GoodsReceiptResource extends Resource
 
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang Tujuan')
-                            ->relationship('warehouse', 'name')
+                            ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true))
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('name')->label('Nama Gudang')->required()->maxLength(100),
                                 Forms\Components\TextInput::make('code')->label('Kode')->maxLength(50),
@@ -162,7 +162,17 @@ class GoodsReceiptResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
-                                    ->options(fn () => Part::withTrashed()->get()->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}"]))
+                                    ->options(function (callable $get) {
+                                        $currentPartId = $get('part_id');
+                                        return Part::where(function (Builder $query) use ($currentPartId) {
+                                            $query->where('is_active', true);
+                                            if ($currentPartId) {
+                                                $query->orWhere('id', $currentPartId);
+                                            }
+                                        })
+                                        ->get()
+                                        ->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}" . ($p->is_active ? '' : ' (Non-Aktif)')]);
+                                    })
                                     ->required()
                                     ->searchable()
                                     ->reactive()
@@ -286,11 +296,64 @@ class GoodsReceiptResource extends Resource
                     ->url(fn (GoodsReceipt $record): string => route('print.goods-receipt', $record))
                     ->openUrlInNewTab(),
                 \Filament\Actions\EditAction::make()->label('Detail / Ubah')->size('sm'),
-                \Filament\Actions\DeleteAction::make()->label('Hapus')->size('sm'),
+                \Filament\Actions\DeleteAction::make()
+                    ->label('Hapus')
+                    ->size('sm')
+                    ->before(function (GoodsReceipt $record, \Filament\Actions\DeleteAction $action) {
+                        if ($record->status === 'RECEIVED') {
+                            $record->loadMissing('items');
+                            foreach ($record->items as $item) {
+                                $currentStock = \App\Models\StockBalance::where('warehouse_id', $record->warehouse_id)
+                                    ->where('part_id', $item->part_id)
+                                    ->value('qty_on_hand') ?? 0;
+
+                                if ($currentStock < $item->qty_received) {
+                                    $part = Part::withTrashed()->find($item->part_id);
+                                    $partName = $part ? "{$part->part_number} ({$part->name})" : "Part #{$item->part_id}";
+
+                                    \Filament\Notifications\Notification::make()
+                                        ->title('Tidak Dapat Menghapus Dokumen LPB')
+                                        ->body("Stok fisik {$partName} di gudang tersisa {$currentStock}, sedangkan LPB ini memasukkan {$item->qty_received}. Stok sudah terpakai dalam transaksi lain sehingga dokumen tidak dapat dihapus.")
+                                        ->danger()
+                                        ->persistent()
+                                        ->send();
+
+                                    $action->halt();
+                                }
+                            }
+                        }
+                    }),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make()->label('Hapus Terpilih'),
+                    \Filament\Actions\DeleteBulkAction::make()
+                        ->label('Hapus Terpilih')
+                        ->before(function (\Illuminate\Database\Eloquent\Collection $records, \Filament\Actions\DeleteBulkAction $action) {
+                            foreach ($records as $record) {
+                                if ($record->status === 'RECEIVED') {
+                                    $record->loadMissing('items');
+                                    foreach ($record->items as $item) {
+                                        $currentStock = \App\Models\StockBalance::where('warehouse_id', $record->warehouse_id)
+                                            ->where('part_id', $item->part_id)
+                                            ->value('qty_on_hand') ?? 0;
+
+                                        if ($currentStock < $item->qty_received) {
+                                            $part = Part::withTrashed()->find($item->part_id);
+                                            $partName = $part ? "{$part->part_number} ({$part->name})" : "Part #{$item->part_id}";
+
+                                            \Filament\Notifications\Notification::make()
+                                                ->title('Gagal Menghapus Masal LPB')
+                                                ->body("Dokumen {$record->receipt_number} tidak dapat dihapus karena stok {$partName} telah terpakai. Seluruh aksi dibatalkan.")
+                                                ->danger()
+                                                ->persistent()
+                                                ->send();
+
+                                            $action->halt();
+                                        }
+                                    }
+                                }
+                            }
+                        }),
                 ])->label('Aksi Masal'),
             ]);
     }

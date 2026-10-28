@@ -34,3 +34,9 @@ Thumbs.db
 !ambil-db-railway.bat
 .env.offline
 dump-railway.php
+.setup_done
+Backup_HeavyTrack/
+HeavyTrack_Portable/
+heavytrack-app/
+scratch/
+PANDUAN_SISTEM_OFFLINE_CEPAT.md

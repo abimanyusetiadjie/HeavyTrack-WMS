@@ -17,6 +17,7 @@ use Filament\Tables\Table;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class DeliveryOrderResource extends Resource
@@ -112,7 +113,7 @@ class DeliveryOrderResource extends Resource
                             
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang Asal')
-                            ->relationship('warehouse', 'name')->createOptionForm([ 
+                            ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true))->createOptionForm([ 
                                 \Filament\Forms\Components\TextInput::make('name')->label('Nama Gudang')->required()->maxLength(100), 
                                 \Filament\Forms\Components\TextInput::make('code')->label('Kode')->maxLength(50), 
                                 \Filament\Forms\Components\Textarea::make('address')->label('Alamat Lengkap')->maxLength(500), 
@@ -174,7 +175,17 @@ class DeliveryOrderResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
-                                    ->options(fn () => Part::withTrashed()->get()->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}"]))
+                                    ->options(function (callable $get) {
+                                        $currentPartId = $get('part_id');
+                                        return Part::where(function (Builder $query) use ($currentPartId) {
+                                            $query->where('is_active', true);
+                                            if ($currentPartId) {
+                                                $query->orWhere('id', $currentPartId);
+                                            }
+                                        })
+                                        ->get()
+                                        ->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}" . ($p->is_active ? '' : ' (Non-Aktif)')]);
+                                    })
                                     ->required()
                                     ->reactive()
                                     ->searchable()

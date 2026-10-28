@@ -21,8 +21,6 @@ class InvoiceResource extends Resource
 {
     protected static ?string $model = Invoice::class;
 
-    protected static bool $shouldRegisterNavigation = false;
-
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-currency-dollar';
     protected static \UnitEnum|string|null $navigationGroup = 'Keuangan & Penjualan';
     protected static ?string $modelLabel = 'Faktur (Invoice)';
@@ -91,7 +89,16 @@ class InvoiceResource extends Resource
                         Forms\Components\DatePicker::make('invoice_date')
                             ->label('Tanggal Terbit')
                             ->required()
-                            ->default(now()),
+                            ->default(now())
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                $contactId = $get('contact_id');
+                                if ($contactId && $state) {
+                                    $contact = \App\Models\Contact::find($contactId);
+                                    $days = $contact?->term_of_payment_days ?: 30;
+                                    $set('due_date', \Carbon\Carbon::parse($state)->addDays((int) $days)->format('Y-m-d'));
+                                }
+                            }),
                             
                         Forms\Components\DatePicker::make('due_date')
                             ->label('Batas Jatuh Tempo')
@@ -112,7 +119,17 @@ class InvoiceResource extends Resource
 
                         Forms\Components\Select::make('delivery_order_id')
                             ->label('Tarik Data dari Surat Jalan (Otomatis)')
-                            ->relationship('deliveryOrder', 'do_number')
+                            ->relationship('deliveryOrder', 'do_number', function (Builder $query, ?Invoice $record) {
+                                $query->whereIn('status', ['CONFIRMED', 'ISSUED']);
+                                if ($record && $record->delivery_order_id) {
+                                    $query->where(function ($q) use ($record) {
+                                        $q->doesntHave('invoices')
+                                          ->orWhere('id', $record->delivery_order_id);
+                                    });
+                                } else {
+                                    $query->doesntHave('invoices');
+                                }
+                            })
                             ->searchable()
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
@@ -120,6 +137,11 @@ class InvoiceResource extends Resource
                                     $do = DeliveryOrder::with(['items.part' => fn ($q) => $q->withTrashed(), 'contact'])->find($state);
                                     if ($do) {
                                         $set('contact_id', $do->contact_id);
+
+                                        if ($do->contact?->term_of_payment_days) {
+                                            $invDate = $get('invoice_date') ? \Carbon\Carbon::parse($get('invoice_date')) : now();
+                                            $set('due_date', $invDate->copy()->addDays((int) $do->contact->term_of_payment_days)->format('Y-m-d'));
+                                        }
                                         
                                         $items = [];
                                         $subtotal = 0;
@@ -169,7 +191,17 @@ class InvoiceResource extends Resource
                                 Forms\Components\Textarea::make('address')->label('Alamat')->maxLength(500), 
                             ])
                             ->required()
-                            ->searchable(),
+                            ->searchable()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                if ($state) {
+                                    $contact = \App\Models\Contact::find($state);
+                                    if ($contact && $contact->term_of_payment_days) {
+                                        $invDate = $get('invoice_date') ? \Carbon\Carbon::parse($get('invoice_date')) : now();
+                                        $set('due_date', $invDate->copy()->addDays((int) $contact->term_of_payment_days)->format('Y-m-d'));
+                                    }
+                                }
+                            }),
                     ])->columns(['default' => 1, 'md' => 2, 'lg' => 3]),
 
                 Section::make('Rincian Tagihan (Items)')
@@ -187,7 +219,17 @@ class InvoiceResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
-                                    ->options(fn () => Part::withTrashed()->get()->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}"]))
+                                    ->options(function (callable $get) {
+                                        $currentPartId = $get('part_id');
+                                        return Part::where(function (Builder $query) use ($currentPartId) {
+                                            $query->where('is_active', true);
+                                            if ($currentPartId) {
+                                                $query->orWhere('id', $currentPartId);
+                                            }
+                                        })
+                                        ->get()
+                                        ->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}" . ($p->is_active ? '' : ' (Non-Aktif)')]);
+                                    })
                                     ->required()
                                     ->searchable()
                                     ->reactive()
@@ -432,21 +474,54 @@ class InvoiceResource extends Resource
                             ->stripCharacters('.')
                             ->required()
                             ->numeric()
+                            ->minValue(1)
                             ->default(fn (Invoice $record) => self::formatMoney(max(0, $record->grand_total - $record->paid_amount))),
                         Forms\Components\TextInput::make('reference_number')->label('No Referensi/Bukti'),
                         Forms\Components\Textarea::make('notes')->label('Catatan'),
                     ])
                     ->action(function (Invoice $record, array $data): void {
-                        $nextPaymentSeq = Payment::whereMonth('created_at', date('m'))
-                            ->whereYear('created_at', date('Y'))
-                            ->count() + 1;
+                        $amount = self::parseMoney($data['amount']);
+                        if ($amount <= 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Nominal Tidak Valid')
+                                ->body('Nominal pembayaran harus lebih besar dari Rp 0.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        $outstanding = max(0, (float) $record->grand_total - (float) $record->paid_amount);
+                        if ($amount > $outstanding) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Nominal Melebihi Sisa Tagihan')
+                                ->body('Nominal pembayaran (Rp ' . number_format($amount, 0, ',', '.') . ') tidak boleh melebihi sisa tagihan (Rp ' . number_format($outstanding, 0, ',', '.') . ').')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        $prefix = 'BKM/' . date('Ym') . '/';
+                        $latest = Payment::withTrashed()
+                            ->where('receipt_number', 'like', $prefix . '%')
+                            ->orderByDesc('receipt_number')
+                            ->value('receipt_number');
+
+                        $nextPaymentSeq = 1;
+                        if ($latest && preg_match('/(\d+)$/', $latest, $matches)) {
+                            $nextPaymentSeq = (int) $matches[1] + 1;
+                        } else {
+                            $nextPaymentSeq = Payment::withTrashed()
+                                ->whereMonth('created_at', date('m'))
+                                ->whereYear('created_at', date('Y'))
+                                ->count() + 1;
+                        }
 
                         Payment::create([
-                            'receipt_number' => 'BKM/' . date('Ym') . '/' . str_pad($nextPaymentSeq, 4, '0', STR_PAD_LEFT) . '-' . substr(uniqid(), -3),
+                            'receipt_number' => $prefix . str_pad($nextPaymentSeq, 4, '0', STR_PAD_LEFT),
                             'invoice_id' => $record->id,
                             'payment_date' => $data['payment_date'],
                             'payment_method' => $data['payment_method'],
-                            'amount' => self::parseMoney($data['amount']),
+                            'amount' => $amount,
                             'reference_number' => $data['reference_number'] ?? null,
                             'notes' => $data['notes'] ?? null,
                             'created_by' => auth()->id() ?? 1,
@@ -462,6 +537,12 @@ class InvoiceResource extends Resource
                         }
                         
                         $record->save();
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Pembayaran Berhasil Dicatat')
+                            ->body('Pembayaran sebesar Rp ' . number_format($amount, 0, ',', '.') . ' telah berhasil dibukukan.')
+                            ->success()
+                            ->send();
                     })
                     ->visible(fn (Invoice $record): bool => $record->status !== 'PAID' && $record->status !== 'VOID'),
             ])

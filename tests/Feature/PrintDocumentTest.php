@@ -125,4 +125,86 @@ class PrintDocumentTest extends TestCase
         $this->assertEquals(200, $res->status());
         $res->assertSee('Surat Jalan Belum Memiliki Rincian Barang');
     }
+
+    public function test_void_delivery_order_cannot_issue_invoice(): void
+    {
+        $user = User::where('email', 'owner@heavytrack.com')->first();
+        if (!$user) {
+            $user = User::factory()->create([
+                'email' => 'testowner3@heavytrack.com',
+                'name' => 'Owner System 3',
+            ]);
+        }
+
+        $contact = Contact::create([
+            'company_name' => 'PT Pelanggan Void',
+            'type' => 'CUSTOMER',
+        ]);
+
+        $warehouse = Warehouse::create([
+            'name' => 'Gudang Void',
+            'code' => 'GDG-VD',
+        ]);
+
+        $voidDo = DeliveryOrder::create([
+            'do_number' => 'SJ/202610/8888',
+            'delivery_date' => now(),
+            'contact_id' => $contact->id,
+            'warehouse_id' => $warehouse->id,
+            'status' => 'VOID',
+            'created_by' => $user->id,
+        ]);
+
+        $res = $this->actingAs($user)->get(route('print.delivery-order.invoice', ['deliveryOrder' => $voidDo->id]));
+        $this->assertEquals(400, $res->status());
+    }
+
+    public function test_invoice_print_with_ppn_and_payment_receipt(): void
+    {
+        $user = User::where('email', 'owner@heavytrack.com')->first();
+        if (!$user) {
+            $user = User::factory()->create([
+                'email' => 'testowner4@heavytrack.com',
+                'name' => 'Owner System 4',
+            ]);
+        }
+
+        $contact = Contact::create([
+            'company_name' => 'PT Mitra Sejahtera',
+            'type' => 'CUSTOMER',
+        ]);
+
+        $invoice = Invoice::create([
+            'invoice_number' => 'INV/202610/0999',
+            'contact_id' => $contact->id,
+            'invoice_date' => now(),
+            'due_date' => now()->addDays(30),
+            'status' => 'PARTIALLY_PAID',
+            'subtotal' => 1000000,
+            'discount_amount' => 0,
+            'tax_percent' => 11,
+            'tax_amount' => 110000,
+            'grand_total' => 1110000,
+            'paid_amount' => 500000,
+            'created_by' => $user->id,
+        ]);
+
+        \App\Models\Payment::create([
+            'receipt_number' => 'BKM/202610/0001',
+            'invoice_id' => $invoice->id,
+            'payment_date' => now(),
+            'payment_method' => 'BANK_TRANSFER',
+            'amount' => 500000,
+            'reference_number' => 'TRF-123456',
+            'created_by' => $user->id,
+        ]);
+
+        // Cetak Faktur (mengecek template dengan PPN)
+        $resInvoice = $this->actingAs($user)->get(route('print.invoice', ['invoice' => $invoice->id]));
+        $this->assertEquals(200, $resInvoice->status());
+
+        // Cetak Kwitansi (mengecek template kwitansi baru dengan terbilang)
+        $resReceipt = $this->actingAs($user)->get(route('print.receipt', ['invoice' => $invoice->id]));
+        $this->assertEquals(200, $resReceipt->status());
+    }
 }

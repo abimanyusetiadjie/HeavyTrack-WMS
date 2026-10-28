@@ -30,6 +30,8 @@ class PrintDocumentController extends Controller
 
         $deliveryOrder->load(['items.part' => fn ($q) => $q->withTrashed(), 'contact']);
         
+        abort_if($deliveryOrder->status === 'VOID', 400, 'Surat Jalan berstatus BATAL (VOID) tidak dapat diterbitkan fakturnya.');
+
         // Jika Surat Jalan belum memiliki barang, tampilkan petunjuk ramah & link edit
         if ($deliveryOrder->items->isEmpty()) {
             return response()->view('errors.document-empty', [
