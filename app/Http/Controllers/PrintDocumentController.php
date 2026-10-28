@@ -28,6 +28,16 @@ class PrintDocumentController extends Controller
         $user = auth()->user();
         abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Faktur.');
 
+        $deliveryOrder->load(['items.part' => fn ($q) => $q->withTrashed(), 'contact']);
+        
+        // Jika Surat Jalan belum memiliki barang, tampilkan petunjuk ramah & link edit
+        if ($deliveryOrder->items->isEmpty()) {
+            return response()->view('errors.document-empty', [
+                'doNumber' => $deliveryOrder->do_number,
+                'editUrl' => url('/admin/delivery-orders/' . $deliveryOrder->id . '/edit'),
+            ]);
+        }
+
         // Transaksionalitas & Pencegahan Race Condition:
         // Gunakan DB transaction + row-level lock agar tidak terjadi faktur duplikat jika 2 kasir klik bersamaan
         $invoice = DB::transaction(function () use ($deliveryOrder, $user) {
@@ -39,9 +49,6 @@ class PrintDocumentController extends Controller
             if ($existing) {
                 return $existing;
             }
-
-            $deliveryOrder->load(['items.part' => fn ($q) => $q->withTrashed(), 'contact']);
-            abort_if($deliveryOrder->items->isEmpty(), 400, 'Surat Jalan belum memiliki rincian barang. Silakan isi barang pada Surat Jalan terlebih dahulu.');
 
             $prefix = 'INV/' . date('Ym') . '/';
             $latest = Invoice::withTrashed()
@@ -75,7 +82,7 @@ class PrintDocumentController extends Controller
                     'part_number_snapshot' => $item->part?->part_number ?? '-',
                     'part_name_snapshot' => $item->part?->name ?? 'Sparepart',
                     'qty' => $item->qty,
-                    'unit' => $item->unit,
+                    'unit' => $item->unit ?: ($item->part?->unit ?? 'PCS'),
                     'unit_price' => $price,
                     'discount_percent' => 0,
                     'total_price' => $lineTotal,

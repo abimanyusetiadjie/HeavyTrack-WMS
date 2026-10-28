@@ -4,9 +4,12 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\DeliveryOrderResource\Pages;
 use App\Models\DeliveryOrder;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Part;
 use App\Models\StockBalance;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -14,6 +17,7 @@ use Filament\Tables\Table;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Illuminate\Support\Facades\DB;
 
 class DeliveryOrderResource extends Resource
 {
@@ -155,7 +159,7 @@ class DeliveryOrderResource extends Resource
                     ])->columns(['default' => 1, 'md' => 2, 'lg' => 3]),
 
                 Section::make('Daftar Barang (Item)')
-                    ->description(fn (?DeliveryOrder $record) => in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true)
+                    ->description(fn (?DeliveryOrder $record) => ($record && $record->items()->count() > 0 && in_array($record->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true))
                         ? 'Daftar sparepart telah dikonfirmasi dan memotong stok gudang (Terkunci untuk menjaga integritas stok).'
                         : 'Daftar sparepart yang dikeluarkan dari gudang untuk dikirim.')
                     ->columnSpanFull()
@@ -166,7 +170,7 @@ class DeliveryOrderResource extends Resource
                             ->relationship()
                             ->minItems(1)
                             ->required()
-                            ->disabled(fn (?DeliveryOrder $record) => in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true))
+                            ->disabled(fn (?DeliveryOrder $record) => $record && $record->items()->count() > 0 && in_array($record->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true))
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
@@ -234,6 +238,12 @@ class DeliveryOrderResource extends Resource
                 Tables\Columns\TextColumn::make('delivery_date')->label('Tgl Kirim')->date('d M Y')->sortable(),
                 Tables\Columns\TextColumn::make('warehouse.name')->label('Gudang Asal'),
                 Tables\Columns\TextColumn::make('contact.company_name')->label('Tujuan / Pelanggan'),
+                Tables\Columns\TextColumn::make('items_count')
+                    ->counts('items')
+                    ->label('Total Item')
+                    ->badge()
+                    ->color(fn ($state) => $state > 0 ? 'info' : 'danger')
+                    ->formatStateUsing(fn ($state) => $state > 0 ? "{$state} Barang" : '0 Barang (Kosong)'),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -271,8 +281,100 @@ class DeliveryOrderResource extends Resource
                     ->icon('heroicon-o-document-currency-dollar')
                     ->color(fn (DeliveryOrder $record) => $record->invoice ? 'success' : 'warning')
                     ->size('sm')
-                    ->url(fn (DeliveryOrder $record): string => route('print.delivery-order.invoice', ['deliveryOrder' => $record->id]))
-                    ->openUrlInNewTab(),
+                    ->action(function (DeliveryOrder $record, \Filament\Actions\Action $action) {
+                        $record->loadMissing(['items.part' => fn ($q) => $q->withTrashed(), 'contact', 'invoice']);
+                        if ($record->items->isEmpty()) {
+                            Notification::make()
+                                ->title('Surat Jalan Belum Memiliki Barang')
+                                ->body("Surat Jalan {$record->do_number} masih kosong (0 item). Harap klik Ubah untuk mengisi barang sebelum menerbitkan faktur.")
+                                ->warning()
+                                ->persistent()
+                                ->send();
+                            return;
+                        }
+
+                        // Jika sudah ada faktur, langsung buka PDF faktur
+                        if ($record->invoice) {
+                            $action->getLivewire()->js("window.open('" . route('print.invoice', ['invoice' => $record->invoice->id]) . "', '_blank');");
+                            return;
+                        }
+
+                        // Jika belum ada faktur, terbitkan sekarang secara transaksional
+                        $invoice = DB::transaction(function () use ($record) {
+                            $existing = Invoice::where('delivery_order_id', $record->id)->latest()->first();
+                            if ($existing) {
+                                return $existing;
+                            }
+
+                            $prefix = 'INV/' . date('Ym') . '/';
+                            $latest = Invoice::withTrashed()
+                                ->where('invoice_number', 'like', $prefix . '%')
+                                ->orderByDesc('invoice_number')
+                                ->value('invoice_number');
+
+                            $nextSeq = 1;
+                            if ($latest && preg_match('/(\d+)$/', $latest, $matches)) {
+                                $nextSeq = (int) $matches[1] + 1;
+                            } else {
+                                $nextSeq = Invoice::withTrashed()
+                                    ->whereMonth('created_at', date('m'))
+                                    ->whereYear('created_at', date('Y'))
+                                    ->count() + 1;
+                            }
+
+                            $invoiceNumber = $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
+
+                            $subtotal = 0;
+                            $itemsData = [];
+                            foreach ($record->items as $item) {
+                                $price = round((float) ($item->part?->selling_price ?? 0));
+                                $lineTotal = round($item->qty * $price);
+                                $subtotal += $lineTotal;
+
+                                $itemsData[] = [
+                                    'part_id' => $item->part_id,
+                                    'part_number_snapshot' => $item->part?->part_number ?? '-',
+                                    'part_name_snapshot' => $item->part?->name ?? 'Sparepart',
+                                    'qty' => $item->qty,
+                                    'unit' => $item->unit ?: ($item->part?->unit ?? 'PCS'),
+                                    'unit_price' => $price,
+                                    'discount_percent' => 0,
+                                    'total_price' => $lineTotal,
+                                ];
+                            }
+
+                            $createdInvoice = Invoice::create([
+                                'invoice_number' => $invoiceNumber,
+                                'delivery_order_id' => $record->id,
+                                'contact_id' => $record->contact_id,
+                                'invoice_date' => now(),
+                                'due_date' => now()->addDays(30),
+                                'status' => 'UNPAID',
+                                'subtotal' => $subtotal,
+                                'discount_amount' => 0,
+                                'tax_percent' => 0,
+                                'tax_amount' => 0,
+                                'grand_total' => $subtotal,
+                                'paid_amount' => 0,
+                                'created_by' => auth()->id() ?? 1,
+                            ]);
+
+                            foreach ($itemsData as $data) {
+                                $data['invoice_id'] = $createdInvoice->id;
+                                InvoiceItem::create($data);
+                            }
+
+                            return $createdInvoice;
+                        });
+
+                        Notification::make()
+                            ->title('Faktur Berhasil Diterbitkan')
+                            ->body("Faktur {$invoice->invoice_number} berhasil dibuat. Dokumen faktur sedang dibuka...")
+                            ->success()
+                            ->send();
+
+                        $action->getLivewire()->js("window.open('" . route('print.invoice', ['invoice' => $invoice->id]) . "', '_blank');");
+                    }),
                 \Filament\Actions\Action::make('print')
                     ->label('Cetak SJ')
                     ->icon('heroicon-o-printer')

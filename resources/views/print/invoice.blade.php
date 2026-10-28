@@ -61,23 +61,23 @@
     <table class="meta-table">
         <tr>
             <td width="15%"><strong>Tgl Faktur</strong></td>
-            <td width="35%">: {{ \Carbon\Carbon::parse($invoice->invoice_date)->format('d F Y') }}</td>
+            <td width="35%">: {{ $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('d F Y') : '-' }}</td>
             <td width="18%"><strong>Ref. Surat Jalan</strong></td>
-            <td width="32%">: {{ $invoice->deliveryOrder->do_number ?? '-' }}</td>
+            <td width="32%">: {{ $invoice->deliveryOrder?->do_number ?? '-' }}</td>
         </tr>
         <tr>
             <td><strong>Jatuh Tempo</strong></td>
-            <td>: {{ \Carbon\Carbon::parse($invoice->due_date)->format('d F Y') }}</td>
+            <td>: {{ $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('d F Y') : '-' }}</td>
             <td><strong>Status Pembayaran</strong></td>
-            <td>: <strong>{{ $invoice->status }}</strong></td>
+            <td>: <strong>{{ $invoice->status ?? 'UNPAID' }}</strong></td>
         </tr>
         <tr>
             <td><strong>Ditagihkan Ke</strong></td>
-            <td colspan="3">: <strong>{{ $invoice->contact->company_name ?? '-' }}</strong> ({{ $invoice->contact->phone ?? '-' }})</td>
+            <td colspan="3">: <strong>{{ $invoice->contact?->company_name ?? '-' }}</strong> ({{ $invoice->contact?->phone ?? '-' }})</td>
         </tr>
         <tr>
             <td><strong>Alamat Penagihan</strong></td>
-            <td colspan="3">: {{ $invoice->contact->address ?? '-' }}</td>
+            <td colspan="3">: {{ $invoice->contact?->address ?? '-' }}</td>
         </tr>
     </table>
 
@@ -96,11 +96,11 @@
             @forelse($invoice->items as $index => $item)
             <tr>
                 <td style="text-align: center;">{{ $index + 1 }}</td>
-                <td style="font-family: monospace; font-weight: bold;">{{ $item->part_number_snapshot ?: ($item->part->part_number ?? '-') }}</td>
-                <td>{{ $item->part_name_snapshot ?: ($item->part->name ?? 'Sparepart') }}</td>
-                <td style="text-align: center;">{{ $item->qty }} {{ $item->unit }}</td>
-                <td style="text-align: right;">Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
-                <td style="text-align: right; font-weight: bold;">Rp {{ number_format($item->total_price, 0, ',', '.') }}</td>
+                <td style="font-family: monospace; font-weight: bold;">{{ $item->part_number_snapshot ?: ($item->part?->part_number ?? '-') }}</td>
+                <td>{{ $item->part_name_snapshot ?: ($item->part?->name ?? 'Sparepart') }}</td>
+                <td style="text-align: center;">{{ $item->qty }} {{ $item->unit ?: 'PCS' }}</td>
+                <td style="text-align: right;">Rp {{ number_format((float) ($item->unit_price ?? 0), 0, ',', '.') }}</td>
+                <td style="text-align: right; font-weight: bold;">Rp {{ number_format((float) ($item->total_price ?? 0), 0, ',', '.') }}</td>
             </tr>
             @empty
             <tr>
@@ -124,26 +124,26 @@
         <table class="summary-table">
             <tr>
                 <td>Subtotal</td>
-                <td style="text-align: right;">Rp {{ number_format($invoice->subtotal, 0, ',', '.') }}</td>
+                <td style="text-align: right;">Rp {{ number_format((float) ($invoice->subtotal ?? 0), 0, ',', '.') }}</td>
             </tr>
-            @if($invoice->discount_amount > 0)
+            @if(($invoice->discount_amount ?? 0) > 0)
             <tr>
                 <td>Potongan Diskon</td>
-                <td style="text-align: right; color: red;">- Rp {{ number_format($invoice->discount_amount, 0, ',', '.') }}</td>
+                <td style="text-align: right; color: red;">- Rp {{ number_format((float) $invoice->discount_amount, 0, ',', '.') }}</td>
             </tr>
             @endif
             <tr style="border-top: 2px solid #0f172a; font-weight: bold; font-size: 13px;">
                 <td>TOTAL TAGIHAN</td>
-                <td style="text-align: right;">Rp {{ number_format(max(0, $invoice->subtotal - ($invoice->discount_amount ?? 0)), 0, ',', '.') }}</td>
+                <td style="text-align: right;">Rp {{ number_format(max(0, (float) ($invoice->subtotal ?? 0) - (float) ($invoice->discount_amount ?? 0)), 0, ',', '.') }}</td>
             </tr>
-            @if($invoice->paid_amount > 0)
+            @if(($invoice->paid_amount ?? 0) > 0)
             <tr style="color: green;">
                 <td>Sudah Dibayar</td>
-                <td style="text-align: right;">Rp {{ number_format($invoice->paid_amount, 0, ',', '.') }}</td>
+                <td style="text-align: right;">Rp {{ number_format((float) $invoice->paid_amount, 0, ',', '.') }}</td>
             </tr>
             <tr style="font-weight: bold;">
                 <td>Sisa Tagihan</td>
-                <td style="text-align: right;">Rp {{ number_format(max(0, max(0, $invoice->subtotal - ($invoice->discount_amount ?? 0)) - $invoice->paid_amount), 0, ',', '.') }}</td>
+                <td style="text-align: right;">Rp {{ number_format(max(0, max(0, (float) ($invoice->subtotal ?? 0) - (float) ($invoice->discount_amount ?? 0)) - (float) $invoice->paid_amount), 0, ',', '.') }}</td>
             </tr>
             @endif
         </table>
