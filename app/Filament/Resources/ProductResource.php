@@ -237,22 +237,31 @@ class ProductResource extends Resource
                         $qty = (int) $data['qty'];
                         $notes = $data['notes'];
 
-                        if ($data['type'] === 'SET') {
-                            $inventoryService->adjustStock($warehouseId, $record->id, $qty, $notes);
-                        } elseif ($data['type'] === 'ADD') {
-                            if ($qty > 0) {
-                                $inventoryService->addStock($warehouseId, $record->id, $qty, 'MANUAL_ADJUSTMENT', $record->id, 'ADJ/' . $record->id, $notes);
+                        try {
+                            if ($data['type'] === 'SET') {
+                                $inventoryService->adjustStock($warehouseId, $record->id, $qty, $notes);
+                            } elseif ($data['type'] === 'ADD') {
+                                if ($qty > 0) {
+                                    $inventoryService->addStock($warehouseId, $record->id, $qty, 'MANUAL_ADJUSTMENT', $record->id, 'ADJ/' . $record->id, $notes);
+                                }
+                            } elseif ($data['type'] === 'SUB') {
+                                if ($qty > 0) {
+                                    $inventoryService->deductStock($warehouseId, $record->id, $qty, 'MANUAL_ADJUSTMENT', $record->id, 'ADJ/' . $record->id, $notes);
+                                }
                             }
-                        } elseif ($data['type'] === 'SUB') {
-                            if ($qty > 0) {
-                                $inventoryService->deductStock($warehouseId, $record->id, $qty, 'MANUAL_ADJUSTMENT', $record->id, 'ADJ/' . $record->id, $notes);
-                            }
-                        }
 
-                        \Filament\Notifications\Notification::make()
-                            ->title('Stok Produk Berhasil Diperbarui')
-                            ->success()
-                            ->send();
+                            \Filament\Notifications\Notification::make()
+                                ->title('Stok Produk Berhasil Diperbarui')
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Gagal Menyesuaikan Stok')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->persistent()
+                                ->send();
+                        }
                     }),
                 \Filament\Actions\EditAction::make()->label('Ubah')->size('sm'),
                 \Filament\Actions\DeleteAction::make()->label('Hapus')->size('sm'),

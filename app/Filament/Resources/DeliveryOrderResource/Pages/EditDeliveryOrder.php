@@ -124,4 +124,47 @@ class EditDeliveryOrder extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function beforeSave(): void
+    {
+        $newStatus = $this->data['status'] ?? $this->record->status;
+        $oldStatus = $this->record->status;
+        $triggerStatuses = ['ISSUED', 'CONFIRMED', 'SHIPPED', 'RECEIVED'];
+
+        // Jika mengaktifkan kembali surat jalan dari status VOID/DRAFT -> pastikan stok tersedia
+        if (!in_array($oldStatus, $triggerStatuses, true) && in_array($newStatus, $triggerStatuses, true)) {
+            $warehouseId = $this->data['warehouse_id'] ?? $this->record->warehouse_id;
+            $items = $this->data['items'] ?? $this->record->items->toArray();
+
+            $qtyByPart = [];
+            foreach ($items as $item) {
+                $partId = $item['part_id'] ?? null;
+                $qty = (int) ($item['qty'] ?? 0);
+                if ($partId && $qty > 0) {
+                    $qtyByPart[$partId] = ($qtyByPart[$partId] ?? 0) + $qty;
+                }
+            }
+
+            foreach ($qtyByPart as $partId => $totalNeeded) {
+                $stock = \App\Models\StockBalance::where('warehouse_id', $warehouseId)
+                    ->where('part_id', $partId)
+                    ->first();
+
+                $available = $stock ? $stock->qty_on_hand : 0;
+                if ($available < $totalNeeded) {
+                    $part = \App\Models\Part::find($partId);
+                    $partName = $part ? "{$part->part_number} ({$part->name})" : "Part ID #{$partId}";
+
+                    Notification::make()
+                        ->title('Stok Gudang Tidak Mencukupi')
+                        ->body("Tidak dapat mengaktifkan Surat Jalan: stok untuk {$partName} di gudang hanya tersisa {$available}, dibutuhkan {$totalNeeded}.")
+                        ->danger()
+                        ->persistent()
+                        ->send();
+
+                    $this->halt();
+                }
+            }
+        }
+    }
 }

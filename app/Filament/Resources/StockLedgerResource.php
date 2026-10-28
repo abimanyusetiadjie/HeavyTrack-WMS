@@ -72,14 +72,15 @@ class StockLedgerResource extends Resource
                     ->label('Jenis Transaksi')
                     ->badge()
                     ->colors([
-                        'success' => fn ($state): bool => in_array($state, ['GOODS_RECEIPT', 'INITIAL_STOCK']),
+                        'success' => fn ($state): bool => in_array($state, ['GOODS_RECEIPT', 'INITIAL_STOCK', 'DELIVERY_ORDER_VOID']),
                         'danger' => fn ($state): bool => in_array($state, ['DELIVERY_ORDER', 'GOODS_RECEIPT_VOID']),
                         'warning' => fn ($state): bool => in_array($state, ['STOCK_ADJUSTMENT', 'MANUAL_ADJUSTMENT']),
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'GOODS_RECEIPT' => 'Barang Masuk (LPB)',
-                        'GOODS_RECEIPT_VOID' => 'Batal Masuk',
+                        'GOODS_RECEIPT_VOID' => 'Batal Masuk (Stok Ditarik)',
                         'DELIVERY_ORDER' => 'Surat Jalan (DO)',
+                        'DELIVERY_ORDER_VOID' => 'Batal Kirim (Stok Kembali)',
                         'STOCK_ADJUSTMENT', 'MANUAL_ADJUSTMENT' => 'Penyesuaian Opname',
                         'INITIAL_STOCK' => 'Saldo Awal',
                         default => $state,
