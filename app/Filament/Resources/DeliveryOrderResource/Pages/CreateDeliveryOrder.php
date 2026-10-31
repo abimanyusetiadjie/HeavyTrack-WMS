@@ -13,6 +13,13 @@ class CreateDeliveryOrder extends CreateRecord
 {
     protected static string $resource = DeliveryOrderResource::class;
 
+    protected static bool $canCreateAnother = false;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
     protected function beforeCreate(): void
     {
         $warehouseId = $this->data['warehouse_id'] ?? null;

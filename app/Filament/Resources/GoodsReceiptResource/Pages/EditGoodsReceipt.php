@@ -13,6 +13,11 @@ class EditGoodsReceipt extends EditRecord
 {
     protected static string $resource = GoodsReceiptResource::class;
 
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
     protected function beforeSave(): void
     {
         $oldStatus = $this->record->status;

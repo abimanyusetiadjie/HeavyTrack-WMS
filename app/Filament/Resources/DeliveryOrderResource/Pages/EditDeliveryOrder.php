@@ -14,6 +14,11 @@ class EditDeliveryOrder extends EditRecord
 {
     protected static string $resource = DeliveryOrderResource::class;
 
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
     protected function getHeaderActions(): array
     {
         return [

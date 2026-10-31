@@ -39,6 +39,8 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            ->resourceCreatePageRedirect('index')
+            ->resourceEditPageRedirect('index')
             ->navigationGroups([
                 'Operasional Gudang',
                 'Keuangan & Penjualan',
