@@ -11,16 +11,16 @@
         .company-sub { font-size: 9px; color: #475569; margin-top: 2px; }
         .doc-title { font-size: 17px; font-weight: bold; color: #0f172a; text-align: right; }
         .doc-number { font-size: 12px; font-family: monospace; color: #334155; text-align: right; margin-top: 2px; }
-        .meta-table td { vertical-align: top; padding: 3px 5px; font-size: 11px; }
+        .meta-table td { vertical-align: top; padding: 3px 5px; font-size: 11px; text-transform: uppercase; }
         .items-table { margin-top: 15px; margin-bottom: 15px; }
         .items-table th { background-color: #f1f5f9; border: 1px solid #94a3b8; padding: 6px 5px; font-size: 10px; text-transform: uppercase; }
-        .items-table td { border: 1px solid #cbd5e1; padding: 6px 5px; }
+        .items-table td { border: 1px solid #cbd5e1; padding: 6px 5px; text-transform: uppercase; }
         .summary-table { width: 45%; float: right; margin-top: 5px; border-collapse: collapse; }
-        .summary-table td { padding: 4px 6px; font-size: 11px; }
-        .payment-info { width: 50%; float: left; margin-top: 5px; font-size: 10px; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; }
+        .summary-table td { padding: 4px 6px; font-size: 11px; text-transform: uppercase; }
+        .payment-info { width: 50%; float: left; margin-top: 5px; font-size: 10px; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; text-transform: uppercase; }
         .clearfix::after { content: ""; clear: both; display: table; }
-        .footer-table { margin-top: 30px; text-align: center; }
-        .footer-table td { width: 50%; padding-top: 50px; font-size: 11px; }
+        .footer-table { margin-top: 30px; text-align: center; text-transform: uppercase; }
+        .footer-table td { width: 50%; padding-top: 50px; font-size: 11px; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -43,8 +43,8 @@
                             <td style="vertical-align: middle; border: none; padding: 0;">
                                 <div class="company-name">MITRA ABADI NUSANTARA</div>
                                 <div class="company-sub">
-                                    Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
-                                    Telp: 081297354119 | Email: revaldo07@gmail.com
+                                    HEAVY EQUIPMENT SPARE PARTS, HEAVY DUTY FILTRATION & INDUSTRIAL SUPPLY<br>
+                                    TELP: 081297354119 | EMAIL: REVALDO07@GMAIL.COM
                                 </div>
                             </td>
                         </tr>
@@ -52,7 +52,7 @@
                 </td>
                 <td style="width: 35%; vertical-align: top;">
                     <div class="doc-title">FAKTUR PENJUALAN</div>
-                    <div class="doc-number">No: {{ $invoice->invoice_number }}</div>
+                    <div class="doc-number">NO: {{ strtoupper($invoice->invoice_number) }}</div>
                 </td>
             </tr>
         </table>
@@ -60,52 +60,52 @@
     
     <table class="meta-table">
         <tr>
-            <td width="15%"><strong>Tgl Faktur</strong></td>
-            <td width="35%">: {{ $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('d F Y') : '-' }}</td>
-            <td width="18%"><strong>Ref. Surat Jalan</strong></td>
-            <td width="32%">: {{ $invoice->deliveryOrder?->do_number ?? '-' }}</td>
+            <td width="15%"><strong>TGL FAKTUR</strong></td>
+            <td width="35%">: {{ $invoice->invoice_date ? strtoupper(\Carbon\Carbon::parse($invoice->invoice_date)->translatedFormat('d F Y')) : '-' }}</td>
+            <td width="18%"><strong>REF. SURAT JALAN</strong></td>
+            <td width="32%">: {{ strtoupper($invoice->deliveryOrder?->do_number ?? '-') }}</td>
         </tr>
         <tr>
-            <td><strong>Jatuh Tempo</strong></td>
-            <td>: {{ $invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date)->format('d F Y') : '-' }}</td>
-            <td><strong>Status Pembayaran</strong></td>
-            <td>: <strong>{{ $invoice->status ?? 'UNPAID' }}</strong></td>
+            <td><strong>JATUH TEMPO</strong></td>
+            <td>: {{ $invoice->due_date ? strtoupper(\Carbon\Carbon::parse($invoice->due_date)->translatedFormat('d F Y')) : '-' }}</td>
+            <td><strong>STATUS PEMBAYARAN</strong></td>
+            <td>: <strong>{{ strtoupper($invoice->status ?? 'UNPAID') }}</strong></td>
         </tr>
         <tr>
-            <td><strong>Ditagihkan Ke</strong></td>
-            <td colspan="3">: <strong>{{ $invoice->contact?->company_name ?? '-' }}</strong> ({{ $invoice->contact?->phone ?? '-' }})</td>
+            <td><strong>DITAGIHKAN KE</strong></td>
+            <td colspan="3">: <strong>{{ strtoupper($invoice->contact?->company_name ?? '-') }}</strong> ({{ $invoice->contact?->phone ?? '-' }})</td>
         </tr>
         <tr>
-            <td><strong>Alamat Penagihan</strong></td>
-            <td colspan="3">: {{ $invoice->contact?->address ?? '-' }}</td>
+            <td><strong>ALAMAT PENAGIHAN</strong></td>
+            <td colspan="3">: {{ strtoupper($invoice->contact?->address ?? '-') }}</td>
         </tr>
     </table>
 
     <table class="items-table">
         <thead>
             <tr>
-                <th width="5%" style="text-align: center;">No</th>
-                <th width="20%">Part Number</th>
-                <th width="35%">Deskripsi Barang</th>
-                <th width="8%" style="text-align: center;">Qty</th>
-                <th width="15%" style="text-align: right;">Harga Satuan</th>
-                <th width="17%" style="text-align: right;">Subtotal (Rp)</th>
+                <th width="5%" style="text-align: center;">NO</th>
+                <th width="20%">PART NUMBER</th>
+                <th width="35%">DESKRIPSI BARANG</th>
+                <th width="8%" style="text-align: center;">QTY</th>
+                <th width="15%" style="text-align: right;">HARGA SATUAN</th>
+                <th width="17%" style="text-align: right;">SUBTOTAL (RP)</th>
             </tr>
         </thead>
         <tbody>
             @forelse($invoice->items as $index => $item)
             <tr>
                 <td style="text-align: center;">{{ $index + 1 }}</td>
-                <td style="font-family: monospace; font-weight: bold;">{{ $item->part_number_snapshot ?: ($item->part?->part_number ?? '-') }}</td>
-                <td>{{ $item->part_name_snapshot ?: ($item->part?->name ?? 'Sparepart') }}</td>
-                <td style="text-align: center;">{{ $item->qty }} {{ $item->unit ?: 'PCS' }}</td>
+                <td style="font-family: monospace; font-weight: bold;">{{ strtoupper($item->part_number_snapshot ?: ($item->part?->part_number ?? '-')) }}</td>
+                <td>{{ strtoupper($item->part_name_snapshot ?: ($item->part?->name ?? 'SPAREPART')) }}</td>
+                <td style="text-align: center;">{{ $item->qty }} {{ strtoupper($item->unit ?: 'PCS') }}</td>
                 <td style="text-align: right;">Rp {{ number_format((float) ($item->unit_price ?? 0), 0, ',', '.') }}</td>
                 <td style="text-align: right; font-weight: bold;">Rp {{ number_format((float) ($item->total_price ?? 0), 0, ',', '.') }}</td>
             </tr>
             @empty
             <tr>
                 <td colspan="6" style="text-align: center; color: #64748b; padding: 12px; font-style: italic;">
-                    (Belum ada rincian barang pada Faktur ini. Silakan tambahkan barang di rincian tagihan).
+                    (BELUM ADA RINCIAN BARANG PADA FAKTUR INI. SILAKAN TAMBAHKAN BARANG DI RINCIAN TAGIHAN).
                 </td>
             </tr>
             @endforelse
@@ -114,21 +114,21 @@
 
     <div class="clearfix">
         <div class="payment-info">
-            <strong>Instruksi Pembayaran Bank Transfer:</strong><br>
-            Bank: <strong>BCA (Bank Central Asia)</strong><br>
-            No. Rekening: <strong>6891102400</strong><br>
-            Atas Nama: <strong>Revaldo Julian</strong><br>
-            <small style="color: #64748b;">* Harap mencantumkan nomor faktur pada berita transfer.</small>
+            <strong>INSTRUKSI PEMBAYARAN BANK TRANSFER:</strong><br>
+            BANK: <strong>BCA (BANK CENTRAL ASIA)</strong><br>
+            NO. REKENING: <strong>6891102400</strong><br>
+            ATAS NAMA: <strong>REVALDO JULIAN</strong><br>
+            <small style="color: #64748b;">* HARAP MENCANTUMKAN NOMOR FAKTUR PADA BERITA TRANSFER.</small>
         </div>
 
         <table class="summary-table">
             <tr>
-                <td>Subtotal</td>
+                <td>SUBTOTAL</td>
                 <td style="text-align: right;">Rp {{ number_format((float) ($invoice->subtotal ?? 0), 0, ',', '.') }}</td>
             </tr>
             @if(($invoice->discount_amount ?? 0) > 0)
             <tr>
-                <td>Potongan Diskon</td>
+                <td>POTONGAN DISKON</td>
                 <td style="text-align: right; color: red;">- Rp {{ number_format((float) $invoice->discount_amount, 0, ',', '.') }}</td>
             </tr>
             @endif
@@ -144,11 +144,11 @@
             </tr>
             @if(($invoice->paid_amount ?? 0) > 0)
             <tr style="color: green;">
-                <td>Sudah Dibayar</td>
+                <td>SUDAH DIBAYAR</td>
                 <td style="text-align: right;">Rp {{ number_format((float) $invoice->paid_amount, 0, ',', '.') }}</td>
             </tr>
             <tr style="font-weight: bold;">
-                <td>Sisa Tagihan</td>
+                <td>SISA TAGIHAN</td>
                 <td style="text-align: right;">Rp {{ number_format(max(0, (float) ($invoice->grand_total ?? 0) - (float) ($invoice->paid_amount ?? 0)), 0, ',', '.') }}</td>
             </tr>
             @endif
@@ -158,11 +158,11 @@
     <table class="footer-table">
         <tr>
             <td>
-                Penerima Tagihan,<br><br><br><br><br>
+                PENERIMA TAGIHAN,<br><br><br><br><br>
                 (___________________)
             </td>
             <td>
-                Hormat Kami,<br><br><br><br><br>
+                HORMAT KAMI,<br><br><br><br><br>
                 (___________________)
             </td>
         </tr>

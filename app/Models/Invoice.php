@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-
 class Invoice extends Model
 {
     use SoftDeletes;
@@ -20,6 +19,15 @@ class Invoice extends Model
         'grand_total' => 'float',
         'paid_amount' => 'float',
     ];
+
+    protected static function booted()
+    {
+        static::saving(function (Invoice $invoice) {
+            if (!empty($invoice->invoice_number)) {
+                $invoice->invoice_number = mb_strtoupper($invoice->invoice_number, 'UTF-8');
+            }
+        });
+    }
 
     public function deliveryOrder() {
         return $this->belongsTo(DeliveryOrder::class);
@@ -37,4 +45,3 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 }
-

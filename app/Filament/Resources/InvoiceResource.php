@@ -65,6 +65,8 @@ class InvoiceResource extends Resource
                             ->label('Nomor Faktur')
                             ->required()
                             ->unique(ignoreRecord: true)
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                             ->default(function () {
                                 $prefix = 'INV/' . date('Ym') . '/';
                                 $latest = Invoice::withTrashed()
@@ -152,10 +154,10 @@ class InvoiceResource extends Resource
                                             
                                             $items[] = [
                                                 'part_id' => $item->part_id,
-                                                'part_number_snapshot' => $item->part?->part_number ?? '-',
-                                                'part_name_snapshot' => $item->part?->name ?? 'Sparepart',
+                                                'part_number_snapshot' => mb_strtoupper($item->part?->part_number ?? '-', 'UTF-8'),
+                                                'part_name_snapshot' => mb_strtoupper($item->part?->name ?? 'Sparepart', 'UTF-8'),
                                                 'qty' => $item->qty,
-                                                'unit' => $item->unit,
+                                                'unit' => mb_strtoupper($item->unit ?: ($item->part?->unit ?? 'PCS'), 'UTF-8'),
                                                 'unit_price' => self::formatMoney($price),
                                                 'total_price' => self::formatMoney($total),
                                                 'discount_percent' => 0
@@ -184,11 +186,24 @@ class InvoiceResource extends Resource
                             ->label('Ditagihkan Kepada (Klien)')
                             ->relationship('contact', 'company_name', fn ($query) => $query->whereIn('type', ['CUSTOMER', 'BOTH']))
                             ->createOptionForm([ 
-                                Forms\Components\TextInput::make('company_name')->label('Nama Perusahaan / Pembeli')->required()->maxLength(255), 
+                                Forms\Components\TextInput::make('company_name')
+                                    ->label('Nama Perusahaan / Pembeli')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
                                 Forms\Components\Hidden::make('type')->default('CUSTOMER'),
-                                Forms\Components\TextInput::make('pic_name')->label('Nama Kontak / PIC')->maxLength(100), 
+                                Forms\Components\TextInput::make('pic_name')
+                                    ->label('Nama Kontak / PIC')
+                                    ->maxLength(100)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
                                 Forms\Components\TextInput::make('phone')->label('Telepon / WA')->tel()->maxLength(50), 
-                                Forms\Components\Textarea::make('address')->label('Alamat')->maxLength(500), 
+                                Forms\Components\Textarea::make('address')
+                                    ->label('Alamat')
+                                    ->maxLength(500)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
                             ])
                             ->required()
                             ->searchable()
@@ -238,9 +253,9 @@ class InvoiceResource extends Resource
                                             $part = Part::withTrashed()->find($state);
                                             if ($part) {
                                                 $price = round((float) ($part->selling_price ?? 0));
-                                                $set('part_number_snapshot', $part->part_number ?? '-');
-                                                $set('part_name_snapshot', $part->name ?? 'Sparepart');
-                                                $set('unit', $part->unit ?? 'PCS');
+                                                $set('part_number_snapshot', mb_strtoupper($part->part_number ?? '-', 'UTF-8'));
+                                                $set('part_name_snapshot', mb_strtoupper($part->name ?? 'Sparepart', 'UTF-8'));
+                                                $set('unit', mb_strtoupper($part->unit ?? 'PCS', 'UTF-8'));
                                                 $set('unit_price', self::formatMoney($price));
                                                 $qty = (float) ($get('qty') ?? 1);
                                                 $set('qty', $qty);
@@ -275,6 +290,8 @@ class InvoiceResource extends Resource
                                 Forms\Components\TextInput::make('unit')
                                     ->label('Satuan')
                                     ->required()
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                                     ->columnSpan(['default' => 6, 'md' => 1]),
                                 
                                 Forms\Components\TextInput::make('unit_price')
@@ -476,8 +493,14 @@ class InvoiceResource extends Resource
                             ->numeric()
                             ->minValue(1)
                             ->default(fn (Invoice $record) => self::formatMoney(max(0, $record->grand_total - $record->paid_amount))),
-                        Forms\Components\TextInput::make('reference_number')->label('No Referensi/Bukti'),
-                        Forms\Components\Textarea::make('notes')->label('Catatan'),
+                        Forms\Components\TextInput::make('reference_number')
+                            ->label('No Referensi/Bukti')
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state),
+                        Forms\Components\Textarea::make('notes')
+                            ->label('Catatan')
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state),
                     ])
                     ->action(function (Invoice $record, array $data): void {
                         $amount = self::parseMoney($data['amount']);
@@ -522,8 +545,8 @@ class InvoiceResource extends Resource
                             'payment_date' => $data['payment_date'],
                             'payment_method' => $data['payment_method'],
                             'amount' => $amount,
-                            'reference_number' => $data['reference_number'] ?? null,
-                            'notes' => $data['notes'] ?? null,
+                            'reference_number' => !empty($data['reference_number']) ? mb_strtoupper($data['reference_number'], 'UTF-8') : null,
+                            'notes' => !empty($data['notes']) ? mb_strtoupper($data['notes'], 'UTF-8') : null,
                             'created_by' => auth()->id() ?? 1,
                         ]);
                         

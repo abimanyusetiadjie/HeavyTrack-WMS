@@ -73,10 +73,10 @@ class EditDeliveryOrder extends EditRecord
 
                             $itemsData[] = [
                                 'part_id' => $item->part_id,
-                                'part_number_snapshot' => $item->part?->part_number ?? '-',
-                                'part_name_snapshot' => $item->part?->name ?? 'Sparepart',
+                                'part_number_snapshot' => mb_strtoupper($item->part?->part_number ?? '-', 'UTF-8'),
+                                'part_name_snapshot' => mb_strtoupper($item->part?->name ?? 'Sparepart', 'UTF-8'),
                                 'qty' => $item->qty,
-                                'unit' => $item->unit ?: ($item->part?->unit ?? 'PCS'),
+                                'unit' => mb_strtoupper($item->unit ?: ($item->part?->unit ?? 'PCS'), 'UTF-8'),
                                 'unit_price' => $price,
                                 'discount_percent' => 0,
                                 'total_price' => $lineTotal,
