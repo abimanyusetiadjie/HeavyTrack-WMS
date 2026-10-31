@@ -159,6 +159,9 @@ class MigrateSqliteToMysqlCommand extends Command
         try {
             DB::connection('mysql')->statement('SET FOREIGN_KEY_CHECKS = 0;');
 
+            $brandRemap = [];
+            $categoryRemap = [];
+
             foreach ($tables as $table) {
                 $sqliteTableExists = DB::connection('sqlite_source')
                     ->select("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [$table]);
@@ -174,16 +177,96 @@ class MigrateSqliteToMysqlCommand extends Command
 
                 if ($rowCount > 0) {
                     $insertData = [];
-                    foreach ($rows as $row) {
-                        $insertData[] = (array) $row;
+
+                    if ($table === 'brands') {
+                        $seenNames = [];
+                        $seenCodes = [];
+                        foreach ($rows as $row) {
+                            $nameKey = mb_strtolower(trim($row->name));
+                            if (isset($seenNames[$nameKey])) {
+                                $brandRemap[$row->id] = $seenNames[$nameKey];
+                                $this->warn("   [MERGE] Merek '{$row->name}' (ID {$row->id}) digabung ke ID {$seenNames[$nameKey]}.");
+                                continue;
+                            }
+                            $seenNames[$nameKey] = $row->id;
+                            if (!empty($row->code)) {
+                                $codeKey = mb_strtolower(trim($row->code));
+                                if (isset($seenCodes[$codeKey])) {
+                                    $row->code = null;
+                                } else {
+                                    $seenCodes[$codeKey] = true;
+                                }
+                            }
+                            $insertData[] = (array) $row;
+                        }
+                    } elseif ($table === 'categories') {
+                        $seenNames = [];
+                        $seenCodes = [];
+                        foreach ($rows as $row) {
+                            $nameKey = mb_strtolower(trim($row->name));
+                            if (isset($seenNames[$nameKey])) {
+                                $categoryRemap[$row->id] = $seenNames[$nameKey];
+                                $this->warn("   [MERGE] Kategori ganda '{$row->name}' (ID {$row->id}) otomatis digabung ke ID {$seenNames[$nameKey]}.");
+                                continue;
+                            }
+                            $seenNames[$nameKey] = $row->id;
+                            if (!empty($row->code)) {
+                                $codeKey = mb_strtolower(trim($row->code));
+                                if (isset($seenCodes[$codeKey])) {
+                                    $row->code = null;
+                                } else {
+                                    $seenCodes[$codeKey] = true;
+                                }
+                            }
+                            $insertData[] = (array) $row;
+                        }
+                    } elseif ($table === 'parts') {
+                        $seenParts = [];
+                        foreach ($rows as $row) {
+                            if ($row->brand_id && isset($brandRemap[$row->brand_id])) {
+                                $row->brand_id = $brandRemap[$row->brand_id];
+                            }
+                            if ($row->category_id && isset($categoryRemap[$row->category_id])) {
+                                $row->category_id = $categoryRemap[$row->category_id];
+                            }
+                            $partKey = $row->brand_id . '_' . mb_strtolower(trim($row->clean_part_number));
+                            if (isset($seenParts[$partKey])) {
+                                $this->warn("   [DUPLIKAT] Part '{$row->part_number}' (ID {$row->id}) dilewati karena sudah ada pada merek tersebut.");
+                                continue;
+                            }
+                            $seenParts[$partKey] = $row->id;
+                            $insertData[] = (array) $row;
+                        }
+                    } else {
+                        foreach ($rows as $row) {
+                            $arr = (array) $row;
+                            if (isset($arr['brand_id']) && isset($brandRemap[$arr['brand_id']])) {
+                                $arr['brand_id'] = $brandRemap[$arr['brand_id']];
+                            }
+                            if (isset($arr['category_id']) && isset($categoryRemap[$arr['category_id']])) {
+                                $arr['category_id'] = $categoryRemap[$arr['category_id']];
+                            }
+                            $insertData[] = $arr;
+                        }
                     }
 
                     foreach (array_chunk($insertData, 200) as $chunk) {
-                        DB::connection('mysql')->table($table)->insert($chunk);
+                        try {
+                            DB::connection('mysql')->table($table)->insert($chunk);
+                        } catch (\Throwable $e) {
+                            foreach ($chunk as $singleRow) {
+                                try {
+                                    DB::connection('mysql')->table($table)->insert($singleRow);
+                                } catch (\Throwable $rowErr) {
+                                    $this->warn("   [INFO] Baris duplikat pada {$table} diabaikan dengan aman.");
+                                }
+                            }
+                        }
                     }
                 }
 
-                $this->line("   - Tabel <comment>{$table}</comment>: <info>{$rowCount} baris data</info> berhasil disalin.");
+                $actualCount = DB::connection('mysql')->table($table)->count();
+                $this->line("   - Tabel <comment>{$table}</comment>: <info>{$actualCount} baris data</info> berhasil disalin.");
             }
 
             DB::connection('mysql')->statement('SET FOREIGN_KEY_CHECKS = 1;');
