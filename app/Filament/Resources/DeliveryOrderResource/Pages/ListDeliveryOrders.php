@@ -6,10 +6,27 @@ use App\Filament\Resources\DeliveryOrderResource;
 use App\Models\DeliveryOrder;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Tabs\Tab;
+use Illuminate\Database\Eloquent\Builder;
 
 class ListDeliveryOrders extends ListRecords
 {
     protected static string $resource = DeliveryOrderResource::class;
+
+    public function getTabs(): array
+    {
+        return [
+            'all' => Tab::make('Semua Surat Jalan'),
+            'confirmed' => Tab::make('Dikonfirmasi')
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereIn('status', ['CONFIRMED', 'ISSUED']))
+                ->badge(fn () => DeliveryOrder::whereIn('status', ['CONFIRMED', 'ISSUED'])->count())
+                ->badgeColor('success'),
+            'void' => Tab::make('Dibatalkan')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'VOID'))
+                ->badge(fn () => DeliveryOrder::where('status', 'VOID')->count())
+                ->badgeColor('danger'),
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

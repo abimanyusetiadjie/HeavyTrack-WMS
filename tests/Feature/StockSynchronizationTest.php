@@ -185,4 +185,28 @@ class StockSynchronizationTest extends TestCase
         $balance->refresh();
         $this->assertEquals(40, $balance->qty_on_hand);
     }
+
+    public function test_stock_ledger_list_page_has_tabs_for_quick_filtering(): void
+    {
+        $this->actingAs($this->user);
+        $this->user->syncRoles([\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner'])]);
+
+        $page = new \App\Filament\Resources\StockLedgerResource\Pages\ListStockLedgers();
+        $tabs = $page->getTabs();
+
+        $this->assertArrayHasKey('all', $tabs);
+        $this->assertArrayHasKey('delivery_order', $tabs);
+        $this->assertArrayHasKey('goods_receipt', $tabs);
+        $this->assertArrayHasKey('adjustment', $tabs);
+        $this->assertArrayHasKey('void', $tabs);
+        $this->assertArrayHasKey('initial', $tabs);
+
+        $response = $this->get(\App\Filament\Resources\StockLedgerResource::getUrl('index'));
+        $response->assertSuccessful();
+        $response->assertSee('Semua Mutasi');
+        $response->assertSee('Surat Jalan (DO)');
+        $response->assertSee('Restock Masuk');
+        $response->assertSee('Koreksi Stok');
+        $response->assertSee('Void / Batal');
+    }
 }
