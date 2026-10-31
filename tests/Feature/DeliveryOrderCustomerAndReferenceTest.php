@@ -28,11 +28,13 @@ class DeliveryOrderCustomerAndReferenceTest extends TestCase
         ]);
         $this->actingAs($this->user);
 
-        $this->warehouse = Warehouse::create([
-            'name' => 'GUDANG UTAMA (PUSAT)',
-            'code' => 'WH-PST',
-            'is_active' => true,
-        ]);
+        $this->warehouse = Warehouse::where('code', 'GMA')->first() ?: Warehouse::firstOrCreate(
+            ['code' => 'GMA'],
+            [
+                'name' => 'GUDANG MITRA ABADI',
+                'is_active' => true,
+            ]
+        );
 
         $this->customer = Contact::create([
             'company_name' => 'PT TAMBANG MAKMUR JAYA',
@@ -59,9 +61,17 @@ class DeliveryOrderCustomerAndReferenceTest extends TestCase
         ]);
     }
 
-    public function test_warehouse_menu_navigation_is_hidden(): void
+    public function test_warehouse_menu_navigation_is_visible_and_locked_to_two_warehouses(): void
     {
-        $this->assertFalse(WarehouseResource::shouldRegisterNavigation());
+        $this->assertTrue(WarehouseResource::shouldRegisterNavigation());
+        $this->assertFalse(WarehouseResource::canCreate());
+        $this->assertFalse(WarehouseResource::canDelete($this->warehouse));
+        $this->assertFalse(WarehouseResource::canDeleteAny());
+
+        // Pastikan 2 gudang resmi terdaftar
+        $this->assertDatabaseHas('warehouses', ['code' => 'GMA', 'name' => 'GUDANG MITRA ABADI']);
+        $this->assertDatabaseHas('warehouses', ['code' => 'GAR', 'name' => 'GUDANG ANEKARASA']);
+        $this->assertEquals(2, Warehouse::count());
     }
 
     public function test_delivery_order_sales_order_reference_saves_as_uppercase(): void
@@ -109,7 +119,7 @@ class DeliveryOrderCustomerAndReferenceTest extends TestCase
         $this->assertStringContainsString('REF. SO / PO', $viewHtml);
         $this->assertStringContainsString('REF-TENDER-2026', $viewHtml);
         $this->assertStringContainsString('PT TAMBANG MAKMUR JAYA', $viewHtml);
-        $this->assertStringContainsString('GUDANG UTAMA (PUSAT)', $viewHtml);
+        $this->assertStringContainsString('GUDANG MITRA ABADI', $viewHtml);
     }
 
     public function test_delivery_order_form_has_preloaded_customer_and_manual_sales_reference(): void

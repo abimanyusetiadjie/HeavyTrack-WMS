@@ -42,16 +42,27 @@ class DatabaseSeeder extends Seeder
         // Hapus role lama yang tidak terpakai
         Role::whereNotIn('name', ['Owner', 'Admin'])->delete();
 
-        // 3. Warehouses (Gudang Fisik)
-        $wPusat = Warehouse::firstOrCreate(
-            ['code' => 'GDG-PUSAT'],
-            ['name' => 'Gudang Utama (Pusat)', 'address' => 'Kawasan Industri Mitra Abadi Nusantara, Blok A No. 12', 'is_active' => true]
+        // 3. Warehouses (Gudang Fisik Terkunci Sistem)
+        $wMitraAbadi = Warehouse::firstOrCreate(
+            ['code' => 'GMA'],
+            [
+                'name' => 'GUDANG MITRA ABADI',
+                'address' => 'KAWASAN INDUSTRI MITRA ABADI NUSANTARA, BLOK A NO. 12',
+                'is_active' => true,
+            ]
         );
 
-        $wTransit = Warehouse::firstOrCreate(
-            ['code' => 'GDG-TRN'],
-            ['name' => 'Gudang Transit Logistik', 'address' => 'Kawasan Pergudangan Logistik Cikarang', 'is_active' => true]
+        $wAnekarasa = Warehouse::firstOrCreate(
+            ['code' => 'GAR'],
+            [
+                'name' => 'GUDANG ANEKARASA',
+                'address' => 'GUDANG CABANG ANEKARASA',
+                'is_active' => true,
+            ]
         );
+
+        // Pastikan hanya 2 gudang ini yang aktif
+        Warehouse::whereNotIn('id', [$wMitraAbadi->id, $wAnekarasa->id])->forceDelete();
 
         // 4. Contacts (Supplier & Pelanggan)
         Contact::firstOrCreate(

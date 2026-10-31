@@ -15,7 +15,7 @@ class WarehouseResource extends Resource
 {
     protected static ?string $model = Warehouse::class;
 
-    protected static bool $shouldRegisterNavigation = false;
+    protected static bool $shouldRegisterNavigation = true;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-building-storefront';
     protected static \UnitEnum|string|null $navigationGroup = 'Master Data';
@@ -32,8 +32,8 @@ class WarehouseResource extends Resource
 
     public static function canCreate(): bool
     {
-        $user = auth()->user();
-        return $user && ($user->isOwner() || $user->isAdmin());
+        // Sistem dikunci permanen pada 2 gudang resmi: GUDANG MITRA ABADI & GUDANG ANEKARASA
+        return false;
     }
 
     public static function canEdit($record): bool
@@ -44,37 +44,56 @@ class WarehouseResource extends Resource
 
     public static function canDelete($record): bool
     {
-        $user = auth()->user();
-        return $user && ($user->isOwner() || $user->isAdmin());
+        // 2 Gudang resmi terkunci permanen dan tidak dapat dihapus
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
+    }
+
+    public static function canForceDelete($record): bool
+    {
+        return false;
+    }
+
+    public static function canForceDeleteAny(): bool
+    {
+        return false;
     }
 
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->schema([
-                Section::make('Informasi Lokasi Gudang')
-                    ->description('Detail kode dan lokasi fasilitas gudang fisik.')
+                Section::make('Informasi Lokasi Gudang (Terkunci Sistem)')
+                    ->description('Daftar gudang operasional resmi sistem HeavyTrack WMS.')
                     ->schema([
                         Forms\Components\TextInput::make('code')
                             ->label('Kode Gudang')
-                            ->required()
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(20)
-                            ->placeholder('Contoh: GDG-01, PUSAT'),
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->helperText('Kode gudang dikunci permanen oleh sistem.'),
 
                         Forms\Components\TextInput::make('name')
                             ->label('Nama Gudang')
-                            ->required()
-                            ->maxLength(100)
-                            ->placeholder('Contoh: Gudang Utama Jakarta'),
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->helperText('Nama gudang dikunci permanen oleh sistem.'),
 
                         Forms\Components\Toggle::make('is_active')
                             ->label('Status Aktif')
-                            ->default(true),
+                            ->default(true)
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->helperText('Gudang operasional selalu aktif.'),
 
                         Forms\Components\Textarea::make('address')
                             ->label('Alamat Fisik Gudang')
                             ->maxLength(500)
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                             ->columnSpanFull(),
                     ])->columns(2),
             ]);
@@ -99,7 +118,7 @@ class WarehouseResource extends Resource
 
                 Tables\Columns\TextColumn::make('address')
                     ->label('Alamat')
-                    ->limit(50)
+                    ->limit(60)
                     ->placeholder('-'),
 
                 Tables\Columns\TextColumn::make('stock_balances_count')
@@ -108,48 +127,17 @@ class WarehouseResource extends Resource
                     ->badge(),
 
                 Tables\Columns\IconColumn::make('is_active')
-                    ->label('Aktif')
+                    ->label('Status Aktif')
                     ->boolean(),
             ])
-            ->filters([
-                Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
-            ])
+            ->filters([])
             ->actions([
-                \Filament\Actions\EditAction::make()->label('Ubah')->size('sm'),
-                \Filament\Actions\DeleteAction::make()
-                    ->label('Hapus')
-                    ->size('sm')
-                    ->before(function (Warehouse $record, \Filament\Actions\DeleteAction $action) {
-                        if ($record->stockBalances()->where('qty_on_hand', '>', 0)->exists()) {
-                            \Filament\Notifications\Notification::make()
-                                ->title('Gudang Tidak Dapat Dihapus')
-                                ->body("Gudang '{$record->name}' masih memiliki saldo stok fisik barang. Pindahkan atau kosongkan stok terlebih dahulu sebelum menghapus gudang.")
-                                ->danger()
-                                ->persistent()
-                                ->send();
-                            $action->halt();
-                        }
-                    }),
+                \Filament\Actions\EditAction::make()
+                    ->label('Ubah Alamat')
+                    ->icon('heroicon-o-pencil-square')
+                    ->size('sm'),
             ])
-            ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make()
-                        ->label('Hapus Terpilih')
-                        ->before(function (\Illuminate\Database\Eloquent\Collection $records, \Filament\Actions\DeleteBulkAction $action) {
-                            foreach ($records as $record) {
-                                if ($record->stockBalances()->where('qty_on_hand', '>', 0)->exists()) {
-                                    \Filament\Notifications\Notification::make()
-                                        ->title('Gudang Tidak Dapat Dihapus')
-                                        ->body("Salah satu gudang terpilih ('{$record->name}') masih memiliki saldo stok fisik barang. Operasi dibatalkan.")
-                                        ->danger()
-                                        ->persistent()
-                                        ->send();
-                                    $action->halt();
-                                }
-                            }
-                        }),
-                ])->label('Aksi Masal'),
-            ]);
+            ->bulkActions([]);
     }
 
     public static function getPages(): array

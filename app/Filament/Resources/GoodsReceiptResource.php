@@ -102,13 +102,8 @@ class GoodsReceiptResource extends Resource
 
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang Tujuan')
-                            ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true))
-                            ->default(fn () => \App\Models\Warehouse::where('is_active', true)->value('id'))
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')->label('Nama Gudang')->required()->maxLength(100),
-                                Forms\Components\TextInput::make('code')->label('Kode')->maxLength(50),
-                                Forms\Components\Textarea::make('address')->label('Alamat')->maxLength(500),
-                            ])
+                            ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('id'))
+                            ->default(fn () => \App\Models\Warehouse::where('code', 'GMA')->value('id') ?? \App\Models\Warehouse::where('name', 'like', '%MITRA ABADI%')->value('id') ?? \App\Models\Warehouse::value('id'))
                             ->required()
                             ->searchable()
                             ->preload()

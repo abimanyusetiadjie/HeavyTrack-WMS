@@ -240,9 +240,11 @@ class ProductResource extends Resource
                     ->form([
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang')
-                            ->options(fn () => \App\Models\Warehouse::where('is_active', true)->pluck('name', 'id'))
+                            ->options(fn () => \App\Models\Warehouse::where('is_active', true)->orderBy('id')->pluck('name', 'id'))
                             ->required()
-                            ->default(fn () => \App\Models\Warehouse::where('is_active', true)->first()?->id),
+                            ->searchable()
+                            ->preload()
+                            ->default(fn () => \App\Models\Warehouse::where('code', 'GMA')->value('id') ?? \App\Models\Warehouse::where('name', 'like', '%MITRA ABADI%')->value('id') ?? \App\Models\Warehouse::first()?->id),
                         Forms\Components\Select::make('type')
                             ->label('Tipe Penyesuaian')
                             ->options([
