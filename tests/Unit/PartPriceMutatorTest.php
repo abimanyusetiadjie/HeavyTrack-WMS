@@ -47,5 +47,28 @@ class PartPriceMutatorTest extends TestCase
 
         $this->assertEquals(75000.50, $part->getRawOriginal('cost_price'));
         $this->assertEquals(95000, $part->getRawOriginal('selling_price'));
+
+        // Test with comma anywhere (e.g. 150,000 or 1,500,000)
+        $part->update([
+            'cost_price' => '150,000',
+            'selling_price' => '1,500,000',
+        ]);
+        $this->assertEquals(150000, $part->getRawOriginal('cost_price'));
+        $this->assertEquals(1500000, $part->getRawOriginal('selling_price'));
+
+        // Test with comma decimals or dot decimals (e.g. 2,3 or 7,5 or 2.3 or 7.5)
+        $part->update([
+            'cost_price' => '2,3',
+            'selling_price' => '7,5',
+        ]);
+        $this->assertEquals(2.3, $part->getRawOriginal('cost_price'));
+        $this->assertEquals(7.5, $part->getRawOriginal('selling_price'));
+
+        $part->update([
+            'cost_price' => '2.3',
+            'selling_price' => '7.5',
+        ]);
+        $this->assertEquals(2.3, $part->getRawOriginal('cost_price'));
+        $this->assertEquals(7.5, $part->getRawOriginal('selling_price'));
     }
 }

@@ -83,4 +83,32 @@ class ProductStockAndPriceUpdateTest extends TestCase
         $response->assertSee('VOLVO HEAVY');
         $response->assertSee('HYDRAULIC FILTER');
     }
+
+    public function test_create_product_form_allows_typing_comma_anywhere_in_prices(): void
+    {
+        $owner = User::factory()->create();
+        $ownerRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner']);
+        $owner->syncRoles([$ownerRole]);
+        $this->actingAs($owner);
+
+        $brand = Brand::firstOrCreate(['name' => 'KOMATSU GENUINE'], ['code' => 'KOM']);
+        $cat = Category::firstOrCreate(['name' => 'O-RING SEAL'], ['code' => 'ORS']);
+
+        \Livewire\Livewire::test(\App\Filament\Resources\ProductResource\Pages\CreateProduct::class)
+            ->assertFormFieldExists('cost_price')
+            ->assertFormFieldExists('selling_price');
+
+        $part = Part::create([
+            'part_number' => 'KM-9988-COMMA',
+            'name' => 'Seal Ring High Temp',
+            'brand_id' => $brand->id,
+            'category_id' => $cat->id,
+            'min_stock_level' => 5,
+            'cost_price' => '2,3',
+            'selling_price' => '150,000',
+        ]);
+
+        $this->assertEquals(2.30, $part->getRawOriginal('cost_price'));
+        $this->assertEquals(150000.00, $part->getRawOriginal('selling_price'));
+    }
 }

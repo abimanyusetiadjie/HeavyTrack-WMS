@@ -51,24 +51,75 @@ class Part extends Model
         return (float) ($value ?? 0);
     }
 
+    public static function parsePrice($value): float
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        if (!is_string($value) || trim($value) === '') {
+            return 0.0;
+        }
+
+        $str = trim($value);
+
+        // Hilangkan prefix "Rp", spasi, dan karakter non-angka/titik/koma
+        $str = preg_replace('/[^\d.,]/', '', $str);
+
+        if ($str === '') {
+            return 0.0;
+        }
+
+        // Jika mengandung kedua tanda (titik DAN koma), misal 1.500.000,50 atau 1,500,000.50
+        if (strpos($str, '.') !== false && strpos($str, ',') !== false) {
+            $lastDot = strrpos($str, '.');
+            $lastComma = strrpos($str, ',');
+            if ($lastComma > $lastDot) {
+                // Titik = ribuan, koma = desimal: 1.500.000,50
+                $str = str_replace('.', '', $str);
+                $str = str_replace(',', '.', $str);
+            } else {
+                // Koma = ribuan, titik = desimal: 1,500,000.50
+                $str = str_replace(',', '', $str);
+            }
+            return (float) $str;
+        }
+
+        // Jika mengandung koma (misal 150,000 atau 1,500,000 atau 2,3 atau 7,5)
+        if (strpos($str, ',') !== false) {
+            $parts = explode(',', $str);
+            if (count($parts) > 2) {
+                return (float) str_replace(',', '', $str);
+            }
+            if (isset($parts[1]) && strlen($parts[1]) === 3 && (int) $parts[0] >= 1) {
+                return (float) str_replace(',', '', $str);
+            }
+            return (float) ($parts[0] . '.' . ($parts[1] ?? '0'));
+        }
+
+        // Jika mengandung titik (misal 150.000 atau 1.500.000 atau 2.3 atau 7.5)
+        if (strpos($str, '.') !== false) {
+            $parts = explode('.', $str);
+            if (count($parts) > 2) {
+                return (float) str_replace('.', '', $str);
+            }
+            if (isset($parts[1]) && strlen($parts[1]) === 3 && (int) $parts[0] >= 1) {
+                return (float) str_replace('.', '', $str);
+            }
+            return (float) ($parts[0] . '.' . ($parts[1] ?? '0'));
+        }
+
+        return (float) $str;
+    }
+
     public function setSellingPriceAttribute($value): void
     {
-        if (is_string($value)) {
-            $clean = preg_replace('/[^\d]/', '', $value);
-            $this->attributes['selling_price'] = (float) ($clean ?: 0);
-        } else {
-            $this->attributes['selling_price'] = (float) ($value ?? 0);
-        }
+        $this->attributes['selling_price'] = self::parsePrice($value);
     }
 
     public function setCostPriceAttribute($value): void
     {
-        if (is_string($value)) {
-            $clean = preg_replace('/[^\d]/', '', $value);
-            $this->attributes['cost_price'] = (float) ($clean ?: 0);
-        } else {
-            $this->attributes['cost_price'] = (float) ($value ?? 0);
-        }
+        $this->attributes['cost_price'] = self::parsePrice($value);
     }
 
     public function brand() {

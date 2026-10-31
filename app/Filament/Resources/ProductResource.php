@@ -145,11 +145,9 @@ class ProductResource extends Resource
                             ->label('Harga Pokok (HPP / Modal)')
                             ->prefix('Rp')
                             ->placeholder('0')
-                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
-                            ->stripCharacters(['.', ',', ' ', 'R', 'p', 'r', 'p'])
-                            ->formatStateUsing(fn ($state) => filled($state) && (float) $state > 0 ? (int) $state : null)
-                            ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) preg_replace('/[^\d]/', '', (string) $state) : 0)
-                            ->numeric()
+                            ->helperText('Bebas mengetik koma (,) atau titik (.) di mana pun.')
+                            ->formatStateUsing(fn ($state) => filled($state) && (float) $state > 0 ? (($f = (float) $state) == (int) $f ? (int) $f : $f) : null)
+                            ->dehydrateStateUsing(fn ($state) => \App\Models\Part::parsePrice($state))
                             ->nullable()
                             ->visible(fn (): bool => auth()->user()?->isOwner() ?? false)
                             ->dehydrated(fn (): bool => auth()->user()?->isOwner() ?? false),
@@ -158,12 +156,10 @@ class ProductResource extends Resource
                             ->label(fn (): string => (auth()->user()?->isOwner() ?? false) ? 'Harga Jual Standar' : 'Harga Jual Kasir')
                             ->prefix('Rp')
                             ->placeholder('0')
-                            ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
-                            ->stripCharacters(['.', ',', ' ', 'R', 'p', 'r', 'p'])
-                            ->formatStateUsing(fn ($state) => filled($state) && (float) $state > 0 ? (int) $state : null)
-                            ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) preg_replace('/[^\d]/', '', (string) $state) : 0)
-                            ->nullable()
-                            ->numeric(),
+                            ->helperText('Bebas mengetik koma (,) atau titik (.) di mana pun.')
+                            ->formatStateUsing(fn ($state) => filled($state) && (float) $state > 0 ? (($f = (float) $state) == (int) $f ? (int) $f : $f) : null)
+                            ->dehydrateStateUsing(fn ($state) => \App\Models\Part::parsePrice($state))
+                            ->nullable(),
                             
                         Forms\Components\Toggle::make('is_active')
                             ->label('Status Aktif')
