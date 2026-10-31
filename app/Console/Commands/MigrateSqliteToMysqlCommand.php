@@ -4,11 +4,18 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\File;
 
 class MigrateSqliteToMysqlCommand extends Command
 {
-    protected $signature = 'db:migrate-to-mysql {--source= : Path file SQLite sumber}';
+    protected $signature = 'db:migrate-to-mysql 
+                            {--source= : Path file SQLite sumber}
+                            {--mysql-host=127.0.0.1 : Host MySQL}
+                            {--mysql-port=3306 : Port MySQL}
+                            {--mysql-db=mitraabadi : Nama database MySQL}
+                            {--mysql-user=mitraabadi : Username MySQL}
+                            {--mysql-pass=mitraabadinusantara : Password MySQL}';
+
     protected $description = 'Migrasi seluruh skema dan data transaksi dari SQLite ke MySQL/MariaDB secara transaksional & aman';
 
     public function handle(): int
@@ -17,34 +24,75 @@ class MigrateSqliteToMysqlCommand extends Command
         $this->info("       HEAVYTRACK WMS - MIGRASI TOTAL DARI SQLITE KE MYSQL / MARIADB            ");
         $this->info("================================================================================");
 
-        // 1. Verifikasi koneksi MySQL
-        $mysqlHost = config('database.connections.mysql.host', '127.0.0.1');
-        $mysqlPort = config('database.connections.mysql.port', 3306);
-        $mysqlDb = config('database.connections.mysql.database');
-        $mysqlUser = config('database.connections.mysql.username');
+        // 1. Tentukan kredensial MySQL
+        $mysqlHost = $this->option('mysql-host') ?: env('DB_HOST', '127.0.0.1');
+        $mysqlPort = $this->option('mysql-port') ?: env('DB_PORT', 3306);
 
-        $this->line("1. MEMERIKSA TARGET MYSQL / MARIADB:");
+        // Jika DB_DATABASE di config saat ini berisi path SQLite (mengandung / atau .sqlite), gunakan default 'mitraabadi'
+        $rawDb = config('database.connections.mysql.database');
+        $isSqlitePath = str_contains($rawDb, '/') || str_contains($rawDb, '\\') || str_contains($rawDb, '.sqlite');
+        
+        $mysqlDb = $this->option('mysql-db');
+        if (!$mysqlDb || $isSqlitePath) {
+            $mysqlDb = env('DB_MYSQL_DATABASE', 'mitraabadi');
+        }
+
+        $mysqlUser = $this->option('mysql-user') ?: (env('DB_MYSQL_USERNAME') ?: (config('database.connections.mysql.username') !== 'root' ? config('database.connections.mysql.username') : 'mitraabadi'));
+        $mysqlPass = $this->option('mysql-pass') ?: (env('DB_MYSQL_PASSWORD') ?: 'mitraabadinusantara');
+
+        $this->line("1. MENYIAPKAN TARGET MYSQL / MARIADB:");
         $this->line("   - Host     : {$mysqlHost}:{$mysqlPort}");
         $this->line("   - Database : {$mysqlDb}");
         $this->line("   - User     : {$mysqlUser}");
+
+        // Atur koneksi runtime MySQL
+        config([
+            'database.connections.mysql.host' => $mysqlHost,
+            'database.connections.mysql.port' => $mysqlPort,
+            'database.connections.mysql.database' => $mysqlDb,
+            'database.connections.mysql.username' => $mysqlUser,
+            'database.connections.mysql.password' => $mysqlPass,
+        ]);
+        DB::purge('mysql');
 
         try {
             DB::connection('mysql')->getPdo();
             $this->info("   [OKE] Koneksi ke MySQL / MariaDB BERHASIL!");
         } catch (\Throwable $e) {
             $this->error("   [GAGAL] Tidak dapat terhubung ke MySQL: " . $e->getMessage());
-            $this->warn("   Pastikan service MySQL aktif di VPS (sudo systemctl status mysql) dan konfigurasi di .env sudah benar.");
+            $this->newLine();
+            $this->warn("TIPS PEMECAHAN MASALAH:");
+            $this->line("1. Pastikan database '{$mysqlDb}' sudah dibuat di MySQL:");
+            $this->line("   sudo mysql -e \"CREATE DATABASE IF NOT EXISTS {$mysqlDb} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\"");
+            $this->line("2. Pastikan user MySQL memiliki izin ke 127.0.0.1 dan localhost:");
+            $this->line("   sudo mysql -e \"CREATE USER IF NOT EXISTS '{$mysqlUser}'@'127.0.0.1' IDENTIFIED BY '{$mysqlPass}';\"");
+            $this->line("   sudo mysql -e \"CREATE USER IF NOT EXISTS '{$mysqlUser}'@'localhost' IDENTIFIED BY '{$mysqlPass}';\"");
+            $this->line("   sudo mysql -e \"GRANT ALL PRIVILEGES ON {$mysqlDb}.* TO '{$mysqlUser}'@'127.0.0.1';\"");
+            $this->line("   sudo mysql -e \"GRANT ALL PRIVILEGES ON {$mysqlDb}.* TO '{$mysqlUser}'@'localhost'; FLUSH PRIVILEGES;\"");
             return 1;
         }
 
         // 2. Tentukan file SQLite sumber
-        $sqlitePath = $this->option('source') ?: config('database.connections.sqlite.database');
+        $sqlitePath = $this->option('source');
+        if (!$sqlitePath) {
+            $configuredSqlite = config('database.connections.sqlite.database');
+            if ($configuredSqlite && file_exists($configuredSqlite)) {
+                $sqlitePath = $configuredSqlite;
+            } elseif (file_exists(database_path('database.sqlite'))) {
+                $sqlitePath = database_path('database.sqlite');
+            } else {
+                // Cari file .sqlite yang ada
+                $candidates = glob(base_path('database/*.sqlite')) ?: [];
+                $sqlitePath = $candidates[0] ?? null;
+            }
+        }
+
         $this->newLine();
         $this->line("2. MEMERIKSA SUMBER DATA SQLITE:");
         $this->line("   - Path SQLite: {$sqlitePath}");
 
-        if (!file_exists($sqlitePath)) {
-            $this->error("   [GAGAL] File SQLite sumber tidak ditemukan di: {$sqlitePath}");
+        if (!$sqlitePath || !file_exists($sqlitePath)) {
+            $this->error("   [GAGAL] File SQLite sumber tidak ditemukan!");
             return 1;
         }
 
@@ -58,7 +106,7 @@ class MigrateSqliteToMysqlCommand extends Command
             return 0;
         }
 
-        // 4. Jalankan migrasi di MySQL
+        // 4. Jalankan migrasi tabel di MySQL
         $this->newLine();
         $this->info("3. MEMBUAT STRUKTUR TABEL DI MYSQL (MIGRATIONS)...");
         try {
@@ -76,7 +124,6 @@ class MigrateSqliteToMysqlCommand extends Command
         $this->newLine();
         $this->info("4. MENTRANSFER DATA DARI SQLITE KE MYSQL...");
 
-        // Konfigurasi koneksi temporer untuk SQLite sumber
         config(['database.connections.sqlite_source' => [
             'driver' => 'sqlite',
             'database' => $sqlitePath,
@@ -113,7 +160,6 @@ class MigrateSqliteToMysqlCommand extends Command
             DB::connection('mysql')->statement('SET FOREIGN_KEY_CHECKS = 0;');
 
             foreach ($tables as $table) {
-                // Periksa apakah tabel ada di SQLite
                 $sqliteTableExists = DB::connection('sqlite_source')
                     ->select("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [$table]);
 
@@ -121,11 +167,9 @@ class MigrateSqliteToMysqlCommand extends Command
                     continue;
                 }
 
-                // Ambil seluruh data dari SQLite
                 $rows = DB::connection('sqlite_source')->table($table)->get();
                 $rowCount = $rows->count();
 
-                // Kosongkan tabel di MySQL untuk mencegah duplikasi
                 DB::connection('mysql')->table($table)->truncate();
 
                 if ($rowCount > 0) {
@@ -134,7 +178,6 @@ class MigrateSqliteToMysqlCommand extends Command
                         $insertData[] = (array) $row;
                     }
 
-                    // Insert dalam chunk agar hemat memori
                     foreach (array_chunk($insertData, 200) as $chunk) {
                         DB::connection('mysql')->table($table)->insert($chunk);
                     }
@@ -152,17 +195,44 @@ class MigrateSqliteToMysqlCommand extends Command
             return 1;
         }
 
-        // 6. Ringkasan & Saran Update .env
+        // 6. Update file .env secara otomatis
+        $this->newLine();
+        $this->info("5. MEMPERBARUI FILE .ENV KE MYSQL...");
+        $envPath = base_path('.env');
+        if (file_exists($envPath)) {
+            $envContent = file_get_contents($envPath);
+
+            $replacements = [
+                '/^DB_CONNECTION=.*/m' => 'DB_CONNECTION=mysql',
+                '/^DB_HOST=.*/m' => "DB_HOST={$mysqlHost}",
+                '/^DB_PORT=.*/m' => "DB_PORT={$mysqlPort}",
+                '/^DB_DATABASE=.*/m' => "DB_DATABASE={$mysqlDb}",
+                '/^DB_USERNAME=.*/m' => "DB_USERNAME={$mysqlUser}",
+                '/^DB_PASSWORD=.*/m' => "DB_PASSWORD=\"{$mysqlPass}\"",
+            ];
+
+            foreach ($replacements as $pattern => $replacement) {
+                if (preg_match($pattern, $envContent)) {
+                    $envContent = preg_replace($pattern, $replacement, $envContent);
+                } else {
+                    $envContent .= "\n" . str_replace(['/^', '/m'], '', $replacement);
+                }
+            }
+
+            file_put_contents($envPath, $envContent);
+            $this->info("   [OKE] File .env telah otomatis diperbarui ke MySQL ({$mysqlDb}).");
+        }
+
+        // 7. Bersihkan cache framework
+        $this->newLine();
+        $this->info("6. MEMBERSIHKAN & MEMBANGUN ULANG CACHE FRAMEWORK...");
+        $this->call('optimize:clear');
+        $this->call('optimize');
+
         $this->newLine();
         $this->info("================================================================================");
-        $this->info("  [SUKSES] MIGRASI KE MYSQL SELESAI DENGAN SEMPURNA!                            ");
-        $this->info("================================================================================");
-        $this->line("Untuk beralih menggunakan MySQL, cukup ubah pengaturan di file .env:");
-        $this->line("  <info>DB_CONNECTION=mysql</info>");
-        $this->newLine();
-        $this->line("Lalu jalankan:");
-        $this->line("  <comment>php artisan optimize:clear</comment>");
-        $this->line("  <comment>php artisan optimize</comment>");
+        $this->info("  [SUKSES 100%] HEAVYTRACK WMS KINI RESMI MENGGUNAKAN MYSQL ({$mysqlDb})!       ");
+        $this->info("  Database bebas lock, bebas permission readonly, dan super cepat!              ");
         $this->info("================================================================================");
 
         return 0;
