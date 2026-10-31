@@ -220,6 +220,7 @@ class DeliveryOrderResource extends Resource
                                                 $query->orWhere('id', $currentPartId);
                                             }
                                         })
+                                        ->select(['id', 'part_number', 'name', 'is_active'])
                                         ->get()
                                         ->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}" . ($p->is_active ? '' : ' (Non-Aktif)')]);
                                     })

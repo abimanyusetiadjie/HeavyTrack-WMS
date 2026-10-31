@@ -61,7 +61,7 @@ class ProductResource extends Resource
                             ->required()
                             ->maxLength(100)
                             ->unique(ignoreRecord: true)
-                            ->reactive()
+                            ->live(onBlur: true)
                             ->afterStateUpdated(fn ($state, callable $set) => $set('clean_part_number', preg_replace('/[^A-Za-z0-9]/', '', $state))),
                         
                         Forms\Components\Hidden::make('clean_part_number'),
@@ -315,7 +315,7 @@ class ProductResource extends Resource
     
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['brand', 'category', 'stockBalances'])
+        return parent::getEloquentQuery()->with(['brand:id,name', 'category:id,name'])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

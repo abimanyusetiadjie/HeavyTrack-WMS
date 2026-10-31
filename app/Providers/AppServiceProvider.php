@@ -31,5 +31,22 @@ class AppServiceProvider extends ServiceProvider
         DeliveryOrder::observe(DeliveryOrderObserver::class);
         \App\Models\Invoice::observe(\App\Observers\InvoiceObserver::class);
         \App\Models\GoodsReceipt::observe(\App\Observers\GoodsReceiptObserver::class);
+
+        // Optimasi Performa SQLite di RAM (In-Memory Mapping & Cache)
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Database\Events\ConnectionEstablished::class,
+            function (\Illuminate\Database\Events\ConnectionEstablished $event) {
+                if ($event->connection->getDriverName() === 'sqlite') {
+                    try {
+                        $pdo = $event->connection->getPdo();
+                        $pdo->exec('PRAGMA temp_store = MEMORY;');
+                        $pdo->exec('PRAGMA mmap_size = 134217728;');
+                        $pdo->exec('PRAGMA cache_size = -20000;');
+                    } catch (\Throwable $e) {
+                        // Abaikan jika tidak didukung pada environment tertentu
+                    }
+                }
+            }
+        );
     }
 }

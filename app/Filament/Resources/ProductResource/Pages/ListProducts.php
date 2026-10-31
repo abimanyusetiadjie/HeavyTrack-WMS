@@ -35,12 +35,12 @@ class ListProducts extends ListRecords
 
     public function getBrands(): \Illuminate\Database\Eloquent\Collection
     {
-        return \App\Models\Brand::orderBy('name')->get();
+        return \App\Models\Brand::select(['id', 'name'])->orderBy('name')->get();
     }
 
     public function getCategories(): \Illuminate\Database\Eloquent\Collection
     {
-        return \App\Models\Category::orderBy('name')->get();
+        return \App\Models\Category::select(['id', 'name'])->orderBy('name')->get();
     }
 
     protected function getHeaderActions(): array
