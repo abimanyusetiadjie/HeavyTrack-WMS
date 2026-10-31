@@ -73,22 +73,42 @@ class ProductResource extends Resource
                         
                         Forms\Components\Select::make('brand_id')
                             ->label('Merek (Brand)')
-                            ->relationship('brand', 'name')
+                            ->relationship('brand', 'name', fn (Builder $query) => $query->orderBy('name'))
                             ->createOptionForm([
-                                \Filament\Forms\Components\TextInput::make('name')->label('Nama Merek')->required()->maxLength(100),
-                                \Filament\Forms\Components\TextInput::make('code')->label('Kode Merek')->maxLength(50),
+                                \Filament\Forms\Components\TextInput::make('name')
+                                    ->label('Nama Merek')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state),
+                                \Filament\Forms\Components\TextInput::make('code')
+                                    ->label('Kode Merek')
+                                    ->maxLength(50)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state),
                             ])
                             ->required()
-                            ->searchable(),
+                            ->searchable()
+                            ->preload(),
                             
                         Forms\Components\Select::make('category_id')
                             ->label('Kategori')
-                            ->relationship('category', 'name')
+                            ->relationship('category', 'name', fn (Builder $query) => $query->orderBy('name'))
                             ->createOptionForm([
-                                \Filament\Forms\Components\TextInput::make('name')->label('Nama Kategori')->required()->maxLength(100),
-                                \Filament\Forms\Components\TextInput::make('code')->label('Kode Kategori')->maxLength(50),
+                                \Filament\Forms\Components\TextInput::make('name')
+                                    ->label('Nama Kategori')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state),
+                                \Filament\Forms\Components\TextInput::make('code')
+                                    ->label('Kode Kategori')
+                                    ->maxLength(50)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state),
                             ])
-                            ->searchable(),
+                            ->searchable()
+                            ->preload(),
                             
                         Forms\Components\Textarea::make('description')
                             ->label('Deskripsi Lengkap')
@@ -204,8 +224,8 @@ class ProductResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
-                Tables\Filters\SelectFilter::make('brand_id')->relationship('brand', 'name')->label('Filter Merk'),
-                Tables\Filters\SelectFilter::make('category_id')->relationship('category', 'name')->label('Filter Kategori'),
+                Tables\Filters\SelectFilter::make('brand_id')->relationship('brand', 'name', fn (Builder $query) => $query->orderBy('name'))->label('Filter Merk')->preload(),
+                Tables\Filters\SelectFilter::make('category_id')->relationship('category', 'name', fn (Builder $query) => $query->orderBy('name'))->label('Filter Kategori')->preload(),
                 Tables\Filters\Filter::make('low_stock')
                     ->label('Stok Menipis (<= Batas Minimum)')
                     ->query(fn (Builder $query) => $query->whereRaw('(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= parts.min_stock_level')),

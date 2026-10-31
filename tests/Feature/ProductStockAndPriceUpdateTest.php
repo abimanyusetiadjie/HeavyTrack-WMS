@@ -61,4 +61,26 @@ class ProductStockAndPriceUpdateTest extends TestCase
         $this->assertEquals(250000, $part->selling_price);
         $this->assertEquals(175000, $part->cost_price);
     }
+
+    public function test_brand_and_category_select_are_preloaded_and_models_uppercase(): void
+    {
+        $owner = User::factory()->create();
+        $ownerRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner']);
+        $owner->syncRoles([$ownerRole]);
+        $this->actingAs($owner);
+
+        $brand = Brand::firstOrCreate(['name' => 'VOLVO HEAVY'], ['code' => 'VLV']);
+        $cat = Category::firstOrCreate(['name' => 'HYDRAULIC FILTER'], ['code' => 'HF']);
+
+        // Test Livewire Create Product form fields exist
+        \Livewire\Livewire::test(\App\Filament\Resources\ProductResource\Pages\CreateProduct::class)
+            ->assertFormFieldExists('brand_id')
+            ->assertFormFieldExists('category_id');
+
+        // Test Create Product page renders preloaded brands and categories
+        $response = $this->get(ProductResource::getUrl('create'));
+        $response->assertSuccessful();
+        $response->assertSee('VOLVO HEAVY');
+        $response->assertSee('HYDRAULIC FILTER');
+    }
 }

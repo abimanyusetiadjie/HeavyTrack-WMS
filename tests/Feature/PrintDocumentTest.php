@@ -202,10 +202,14 @@ class PrintDocumentTest extends TestCase
         // Cetak Faktur (mengecek template dengan PPN)
         $resInvoice = $this->actingAs($user)->get(route('print.invoice', ['invoice' => $invoice->id]));
         $this->assertEquals(200, $resInvoice->status());
+        $invView = view('print.invoice', ['invoice' => $invoice->fresh()->load(['items.part', 'contact', 'deliveryOrder'])])->render();
+        $this->assertStringContainsString('revaldojulian07@gmail.com', $invView);
 
         // Cetak Kwitansi (mengecek template kwitansi baru dengan terbilang)
         $resReceipt = $this->actingAs($user)->get(route('print.receipt', ['invoice' => $invoice->id]));
         $this->assertEquals(200, $resReceipt->status());
+        $receiptView = view('print.receipt', ['invoice' => $invoice->fresh()->load(['contact', 'payments', 'items'])])->render();
+        $this->assertStringContainsString('revaldojulian07@gmail.com', $receiptView);
     }
 
     public function test_delivery_order_fields_and_print_are_automatically_capslock(): void
@@ -277,5 +281,7 @@ class PrintDocumentTest extends TestCase
         $this->assertStringContainsString('GUDANG PUSAT BEKASI', $viewContent);
         $this->assertStringContainsString('SEAL O-RING KIT', $viewContent);
         $this->assertStringContainsString('KONDISI KARDUS MASIH SEGEL PABRIK', $viewContent);
+        // Pengecualian lowercase untuk email
+        $this->assertStringContainsString('revaldojulian07@gmail.com', $viewContent);
     }
 }

@@ -40,7 +40,7 @@
                                 <div class="company-name">MITRA ABADI NUSANTARA</div>
                                 <div class="company-sub">
                                     Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
-                                    Telp: 081297354119 | Email: revaldo07@gmail.com
+                                    Telp: 081297354119 | Email: <span style="text-transform: lowercase;">revaldojulian07@gmail.com</span>
                                 </div>
                             </td>
                         </tr>
