@@ -48,6 +48,7 @@
             vertical-align: top;
             padding: 3px 4px;
             font-size: 11px;
+            text-transform: uppercase;
         }
         .items-table {
             margin-top: 12px;
@@ -63,15 +64,23 @@
         .items-table td {
             border: 1px solid #cbd5e1;
             padding: 5px 4px;
+            text-transform: uppercase;
+        }
+        .notes-box {
+            font-size: 10px;
+            margin-top: 6px;
+            text-transform: uppercase;
         }
         .footer-table {
             margin-top: 20px;
             text-align: center;
+            text-transform: uppercase;
         }
         .footer-table td {
             width: 33%;
             padding-top: 45px;
             font-size: 10px;
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -95,8 +104,8 @@
                             <td style="vertical-align: middle; border: none; padding: 0;">
                                 <div class="company-name">MITRA ABADI NUSANTARA</div>
                                 <div class="company-sub">
-                                    Heavy Equipment Spare Parts, Heavy Duty Filtration & Industrial Supply<br>
-                                    Telp: 081297354119 | Email: revaldo07@gmail.com
+                                    HEAVY EQUIPMENT SPARE PARTS, HEAVY DUTY FILTRATION & INDUSTRIAL SUPPLY<br>
+                                    TELP: 081297354119 | EMAIL: REVALDO07@GMAIL.COM
                                 </div>
                             </td>
                         </tr>
@@ -104,7 +113,7 @@
                 </td>
                 <td style="width: 35%; vertical-align: top;">
                     <div class="doc-title">SURAT JALAN</div>
-                    <div class="doc-number">No: {{ $do->do_number }}</div>
+                    <div class="doc-number">NO: {{ strtoupper($do->do_number) }}</div>
                 </td>
             </tr>
         </table>
@@ -112,71 +121,77 @@
     
     <table class="meta-table">
         <tr>
-            <td width="15%"><strong>Tgl Pengiriman</strong></td>
-            <td width="35%">: {{ \Carbon\Carbon::parse($do->delivery_date)->format('d F Y') }}</td>
-            <td width="15%"><strong>Gudang Asal</strong></td>
-            <td width="35%">: {{ $do->warehouse->name ?? '-' }}</td>
+            <td width="15%"><strong>TGL PENGIRIMAN</strong></td>
+            <td width="35%">: {{ strtoupper(\Carbon\Carbon::parse($do->delivery_date)->translatedFormat('d F Y')) }}</td>
+            <td width="15%"><strong>GUDANG ASAL</strong></td>
+            <td width="35%">: {{ strtoupper($do->warehouse->name ?? '-') }}</td>
         </tr>
         <tr>
-            <td><strong>Penerima / Klien</strong></td>
-            <td>: <strong>{{ $do->contact->company_name ?? '-' }}</strong></td>
-            <td><strong>Pengemudi (Driver)</strong></td>
-            <td>: {{ $do->driver_name ?? '-' }}</td>
+            <td><strong>PENERIMA / KLIEN</strong></td>
+            <td>: <strong>{{ strtoupper($do->contact->company_name ?? '-') }}</strong></td>
+            <td><strong>PENGEMUDI (DRIVER)</strong></td>
+            <td>: {{ strtoupper($do->driver_name ?? '-') }}</td>
         </tr>
         <tr>
-            <td><strong>Alamat Tujuan</strong></td>
-            <td>: {{ $do->contact->address ?? '-' }}</td>
-            <td><strong>No. Kendaraan</strong></td>
-            <td>: {{ $do->vehicle_plate_number ?? '-' }}</td>
+            <td><strong>ALAMAT TUJUAN</strong></td>
+            <td>: {{ strtoupper($do->contact->address ?? '-') }}</td>
+            <td><strong>NO. KENDARAAN</strong></td>
+            <td>: {{ strtoupper($do->vehicle_plate_number ?? '-') }}</td>
         </tr>
     </table>
 
     <table class="items-table">
         <thead>
             <tr>
-                <th width="5%" style="text-align: center;">No</th>
-                <th width="22%">Part Number</th>
-                <th width="43%">Nama Barang / Spesifikasi</th>
-                <th width="15%" style="text-align: center;">Jumlah (Qty)</th>
-                <th width="15%" style="text-align: center;">Satuan</th>
+                <th width="5%" style="text-align: center;">NO</th>
+                <th width="22%">PART NUMBER</th>
+                <th width="43%">NAMA BARANG / SPESIFIKASI</th>
+                <th width="15%" style="text-align: center;">JUMLAH (QTY)</th>
+                <th width="15%" style="text-align: center;">SATUAN</th>
             </tr>
         </thead>
         <tbody>
             @forelse($do->items as $index => $item)
             <tr>
                 <td style="text-align: center;">{{ $index + 1 }}</td>
-                <td style="font-family: monospace; font-weight: bold;">{{ $item->part->part_number ?? '-' }}</td>
-                <td>{{ $item->part->name ?? '-' }} @if(isset($item->part->brand->name))<small>({{ $item->part->brand->name }})</small>@endif</td>
+                <td style="font-family: monospace; font-weight: bold;">{{ strtoupper($item->part->part_number ?? '-') }}</td>
+                <td>
+                    {{ strtoupper($item->part->name ?? '-') }}
+                    @if(isset($item->part->brand->name))<small>({{ strtoupper($item->part->brand->name) }})</small>@endif
+                    @if(!empty($item->notes))
+                    <div style="font-size: 9px; color: #475569; margin-top: 2px;">{{ strtoupper($item->notes) }}</div>
+                    @endif
+                </td>
                 <td style="text-align: center; font-weight: bold;">{{ $item->qty }}</td>
-                <td style="text-align: center;">{{ $item->unit }}</td>
+                <td style="text-align: center;">{{ strtoupper($item->unit) }}</td>
             </tr>
             @empty
             <tr>
                 <td colspan="5" style="text-align: center; color: #64748b; padding: 12px; font-style: italic;">
-                    (Belum ada rincian barang pada Surat Jalan ini. Silakan tambahkan barang di menu Surat Jalan).
+                    (BELUM ADA RINCIAN BARANG PADA SURAT JALAN INI. SILAKAN TAMBAHKAN BARANG DI MENU SURAT JALAN).
                 </td>
             </tr>
             @endforelse
         </tbody>
     </table>
 
-    <div style="font-size: 10px; margin-top: 5px;">
-        <strong>Catatan Pengiriman:</strong> {{ $do->notes ?? 'Barang dikirim dalam kondisi baik dan lengkap.' }}
+    <div class="notes-box">
+        <strong>CATATAN PENGIRIMAN:</strong> {{ strtoupper($do->notes ?? 'BARANG DIKIRIM DALAM KONDISI BAIK DAN LENGKAP.') }}
     </div>
 
     <table class="footer-table">
         <tr>
             <td>
-                Diterima Oleh,<br><br><br><br>
+                DITERIMA OLEH,<br><br><br><br>
                 (___________________)<br>
-                Tgl:
+                TGL:
             </td>
             <td>
-                Pengemudi / Ekspedisi,<br><br><br><br>
-                ( {{ $do->driver_name ?: '___________________' }} )
+                PENGEMUDI / EKSPEDISI,<br><br><br><br>
+                ( {{ strtoupper($do->driver_name ?: '___________________') }} )
             </td>
             <td>
-                Hormat Kami,<br><br><br><br><br>
+                HORMAT KAMI,<br><br><br><br><br>
                 (___________________)
             </td>
         </tr>

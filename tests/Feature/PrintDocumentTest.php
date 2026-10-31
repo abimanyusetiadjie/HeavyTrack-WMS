@@ -207,4 +207,75 @@ class PrintDocumentTest extends TestCase
         $resReceipt = $this->actingAs($user)->get(route('print.receipt', ['invoice' => $invoice->id]));
         $this->assertEquals(200, $resReceipt->status());
     }
+
+    public function test_delivery_order_fields_and_print_are_automatically_capslock(): void
+    {
+        $user = User::where('email', 'owner@heavytrack.com')->first() ?: User::factory()->create([
+            'email' => 'testowner_caps@heavytrack.com',
+            'name' => 'Owner Caps',
+        ]);
+
+        $contact = Contact::create([
+            'company_name' => 'pt mitra sentosa abadi',
+            'type' => 'CUSTOMER',
+            'address' => 'jl. raya narogong km 14',
+        ]);
+
+        $warehouse = Warehouse::create([
+            'name' => 'gudang pusat bekasi',
+            'code' => 'gdg-pust',
+        ]);
+
+        $brand = \App\Models\Brand::firstOrCreate(['name' => 'Caterpillar'], ['code' => 'CAT']);
+        $cat = \App\Models\Category::firstOrCreate(['name' => 'O-Ring'], ['code' => 'ORG']);
+
+        $part = Part::create([
+            'part_number' => 'or-999',
+            'name' => 'seal o-ring kit',
+            'brand_id' => $brand->id,
+            'category_id' => $cat->id,
+            'selling_price' => 75000,
+            'cost_price' => 50000,
+        ]);
+
+        // Simulasikan penginputan huruf kecil (lowercase)
+        $do = DeliveryOrder::create([
+            'do_number' => 'sj/202610/9001',
+            'delivery_date' => now(),
+            'contact_id' => $contact->id,
+            'warehouse_id' => $warehouse->id,
+            'status' => 'CONFIRMED',
+            'driver_name' => 'supir bambang pamungkas',
+            'vehicle_plate_number' => 'b 9988 kza',
+            'notes' => 'barang titipan proyek tambang, tolong hati-hati di jalan',
+            'created_by' => $user->id,
+        ]);
+
+        $item = DeliveryOrderItem::create([
+            'delivery_order_id' => $do->id,
+            'part_id' => $part->id,
+            'qty' => 10,
+            'unit' => 'pcs',
+            'notes' => 'kondisi kardus masih segel pabrik',
+        ]);
+
+        // 1. Verifikasi model event mengubah teks menjadi UPPERCASE (CAPSLOCK) di database
+        $this->assertEquals('SJ/202610/9001', $do->fresh()->do_number);
+        $this->assertEquals('SUPIR BAMBANG PAMUNGKAS', $do->fresh()->driver_name);
+        $this->assertEquals('B 9988 KZA', $do->fresh()->vehicle_plate_number);
+        $this->assertEquals('BARANG TITIPAN PROYEK TAMBANG, TOLONG HATI-HATI DI JALAN', $do->fresh()->notes);
+        $this->assertEquals('PCS', $item->fresh()->unit);
+        $this->assertEquals('KONDISI KARDUS MASIH SEGEL PABRIK', $item->fresh()->notes);
+
+        // 2. Verifikasi print view delivery order
+        $viewContent = view('print.delivery-order', ['do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse'])])->render();
+        $this->assertStringContainsString('SURAT JALAN', $viewContent);
+        $this->assertStringContainsString('SUPIR BAMBANG PAMUNGKAS', $viewContent);
+        $this->assertStringContainsString('B 9988 KZA', $viewContent);
+        $this->assertStringContainsString('PT MITRA SENTOSA ABADI', $viewContent);
+        $this->assertStringContainsString('JL. RAYA NAROGONG KM 14', $viewContent);
+        $this->assertStringContainsString('GUDANG PUSAT BEKASI', $viewContent);
+        $this->assertStringContainsString('SEAL O-RING KIT', $viewContent);
+        $this->assertStringContainsString('KONDISI KARDUS MASIH SEGEL PABRIK', $viewContent);
+    }
 }

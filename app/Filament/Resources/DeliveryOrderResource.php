@@ -68,6 +68,8 @@ class DeliveryOrderResource extends Resource
                             ->label('Nomor Surat Jalan')
                             ->required()
                             ->unique(ignoreRecord: true)
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                             ->default(function () {
                                 $prefix = 'SJ/' . date('Ym') . '/';
                                 $latest = DeliveryOrder::withTrashed()
@@ -114,9 +116,22 @@ class DeliveryOrderResource extends Resource
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang Asal')
                             ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true))->createOptionForm([ 
-                                \Filament\Forms\Components\TextInput::make('name')->label('Nama Gudang')->required()->maxLength(100), 
-                                \Filament\Forms\Components\TextInput::make('code')->label('Kode')->maxLength(50), 
-                                \Filament\Forms\Components\Textarea::make('address')->label('Alamat Lengkap')->maxLength(500), 
+                                \Filament\Forms\Components\TextInput::make('name')
+                                    ->label('Nama Gudang')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
+                                \Filament\Forms\Components\TextInput::make('code')
+                                    ->label('Kode')
+                                    ->maxLength(50)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
+                                \Filament\Forms\Components\Textarea::make('address')
+                                    ->label('Alamat Lengkap')
+                                    ->maxLength(500)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
                             ])
                             ->required()
                             ->reactive()
@@ -127,11 +142,27 @@ class DeliveryOrderResource extends Resource
                             ->label('Pelanggan / Tujuan')
                             ->relationship('contact', 'company_name', fn ($query) => $query->whereIn('type', ['CUSTOMER', 'BOTH']))
                             ->createOptionForm([ 
-                                Forms\Components\TextInput::make('company_name')->label('Nama Perusahaan / Pembeli')->required()->maxLength(255), 
+                                Forms\Components\TextInput::make('company_name')
+                                    ->label('Nama Perusahaan / Pembeli')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
                                 Forms\Components\Hidden::make('type')->default('CUSTOMER'),
-                                Forms\Components\TextInput::make('pic_name')->label('Nama Kontak / PIC')->maxLength(100), 
-                                Forms\Components\TextInput::make('phone')->label('Nomor Telepon / WA')->tel()->maxLength(50), 
-                                Forms\Components\Textarea::make('address')->label('Alamat Lengkap')->maxLength(500), 
+                                Forms\Components\TextInput::make('pic_name')
+                                    ->label('Nama Kontak / PIC')
+                                    ->maxLength(100)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
+                                Forms\Components\TextInput::make('phone')
+                                    ->label('Nomor Telepon / WA')
+                                    ->tel()
+                                    ->maxLength(50), 
+                                Forms\Components\Textarea::make('address')
+                                    ->label('Alamat Lengkap')
+                                    ->maxLength(500)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
                             ])
                             ->required()
                             ->searchable(),
@@ -143,16 +174,22 @@ class DeliveryOrderResource extends Resource
 
                         Forms\Components\TextInput::make('driver_name')
                             ->label('Nama Supir')
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                             ->maxLength(100),
                             
                         Forms\Components\TextInput::make('vehicle_plate_number')
                             ->label('Plat Nomor Kendaraan')
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                             ->maxLength(30),
 
                         Forms\Components\Textarea::make('notes')
                             ->label('Catatan Surat Jalan')
                             ->rows(2)
-                            ->placeholder('Catatan pengiriman, rute, instruksi supir, dll.')
+                            ->placeholder('CATATAN PENGIRIMAN, RUTE, INSTRUKSI SUPIR, DLL.')
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                             ->maxLength(500),
                             
                         Forms\Components\Hidden::make('created_by')
@@ -196,7 +233,7 @@ class DeliveryOrderResource extends Resource
                                             $set('available_stock', $stock ? $stock->qty_on_hand : 0);
                                             $part = Part::withTrashed()->find($state);
                                             if ($part) {
-                                                $set('unit', $part->unit ?? 'PCS');
+                                                $set('unit', mb_strtoupper($part->unit ?? 'PCS', 'UTF-8'));
                                             }
                                         } else {
                                             $set('available_stock', 0);
@@ -230,11 +267,15 @@ class DeliveryOrderResource extends Resource
                                     ->label('Satuan')
                                     ->required()
                                     ->maxLength(20)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                                     ->columnSpan(['default' => 4, 'md' => 3]),
                                     
                                 Forms\Components\TextInput::make('notes')
                                     ->label('Catatan Tambahan')
                                     ->maxLength(255)
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                                    ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state)
                                     ->columnSpanFull(),
                             ])->columns(['default' => 12, 'md' => 12]),
                     ]),
