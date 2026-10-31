@@ -233,6 +233,7 @@ class DeliveryOrderResource extends Resource
                                     ->required()
                                     ->reactive()
                                     ->searchable()
+                                    ->preload()
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         $warehouseId = $get('../../warehouse_id');
                                         if ($state && $warehouseId) {

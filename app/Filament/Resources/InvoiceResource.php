@@ -133,6 +133,7 @@ class InvoiceResource extends Resource
                                 }
                             })
                             ->searchable()
+                            ->preload()
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if ($state) {
@@ -184,7 +185,7 @@ class InvoiceResource extends Resource
                             
                         Forms\Components\Select::make('contact_id')
                             ->label('Ditagihkan Kepada (Klien)')
-                            ->relationship('contact', 'company_name', fn ($query) => $query->whereIn('type', ['CUSTOMER', 'BOTH']))
+                            ->relationship('contact', 'company_name', fn ($query) => $query->whereIn('type', ['CUSTOMER', 'BOTH'])->orderBy('company_name'))
                             ->createOptionForm([ 
                                 Forms\Components\TextInput::make('company_name')
                                     ->label('Nama Perusahaan / Pembeli')
@@ -207,6 +208,7 @@ class InvoiceResource extends Resource
                             ])
                             ->required()
                             ->searchable()
+                            ->preload()
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if ($state) {
@@ -248,6 +250,7 @@ class InvoiceResource extends Resource
                                     })
                                     ->required()
                                     ->searchable()
+                                    ->preload()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         if ($state) {

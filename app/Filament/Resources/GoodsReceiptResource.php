@@ -179,6 +179,7 @@ class GoodsReceiptResource extends Resource
                                     })
                                     ->required()
                                     ->searchable()
+                                    ->preload()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state) {
@@ -282,7 +283,8 @@ class GoodsReceiptResource extends Resource
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
                 Tables\Filters\SelectFilter::make('warehouse_id')
                     ->label('Filter Gudang')
-                    ->relationship('warehouse', 'name'),
+                    ->relationship('warehouse', 'name')
+                    ->preload(),
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Filter Status')
                     ->options([

@@ -119,7 +119,8 @@ class StockLedgerResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('warehouse_id')
                     ->label('Filter Gudang')
-                    ->relationship('warehouse', 'name'),
+                    ->relationship('warehouse', 'name')
+                    ->preload(),
                 Tables\Filters\SelectFilter::make('reference_type')
                     ->label('Filter Transaksi')
                     ->options([
