@@ -27,6 +27,39 @@ class EditProduct extends EditRecord
         return $data;
     }
 
+    protected function afterSave(): void
+    {
+        $targetQty = isset($this->data['initial_stock']) ? (int) $this->data['initial_stock'] : null;
+        if ($targetQty !== null && $targetQty >= 0) {
+            $primaryWarehouse = \App\Models\Warehouse::where('is_active', true)->first();
+            if ($primaryWarehouse) {
+                $balance = \App\Models\StockBalance::firstOrCreate(
+                    ['warehouse_id' => $primaryWarehouse->id, 'part_id' => $this->record->id],
+                    ['qty_on_hand' => 0, 'qty_reserved' => 0]
+                );
+                $oldQty = (int) $balance->qty_on_hand;
+                if ($targetQty !== $oldQty) {
+                    $diff = $targetQty - $oldQty;
+                    $balance->qty_on_hand = $targetQty;
+                    $balance->save();
+
+                    \App\Models\StockLedger::create([
+                        'part_id' => $this->record->id,
+                        'warehouse_id' => $primaryWarehouse->id,
+                        'reference_type' => 'STOCK_ADJUSTMENT',
+                        'reference_id' => $this->record->id,
+                        'reference_number' => 'OPNAME/' . $this->record->part_number . '/' . date('YmdHi'),
+                        'qty_change' => $diff,
+                        'balance_before' => $oldQty,
+                        'balance_after' => $targetQty,
+                        'notes' => 'Penyesuaian stok langsung dari form produk',
+                        'created_by' => auth()->id() ?? 1,
+                    ]);
+                }
+            }
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [

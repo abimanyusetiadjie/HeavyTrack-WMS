@@ -97,7 +97,7 @@ class ProductResource extends Resource
                     ])->columns(['default' => 1, 'md' => 2]),
                     
                 \Filament\Schemas\Components\Section::make('Stok & Lokasi')
-                    ->description('Pengaturan lokasi penyimpanan dan batas stok minimum.')
+                    ->description('Pengaturan lokasi penyimpanan, batas stok minimum, dan saldo fisik barang.')
                     ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('bin_location')
@@ -110,11 +110,34 @@ class ProductResource extends Resource
                             ->maxLength(20),
                             
                         Forms\Components\TextInput::make('min_stock_level')
-                            ->label('Batas Minimal Stok')
+                            ->label('Batas Minimal Stok (Alert)')
+                            ->helperText('Batas peringatan stok menipis.')
                             ->required()
                             ->numeric()
                             ->default(5),
-                    ])->columns(['default' => 1, 'md' => 3]),
+
+                        Forms\Components\TextInput::make('initial_stock')
+                            ->label('Stok Fisik Saat Ini')
+                            ->helperText('Jumlah saldo fisik barang saat ini di Gudang. Perubahan angka otomatis memperbarui stok dan mencatat mutasi.')
+                            ->numeric()
+                            ->default(0)
+                            ->afterStateHydrated(function (Forms\Components\TextInput $component, ?Part $record) {
+                                if (! $record) {
+                                    $component->state(0);
+                                    return;
+                                }
+                                $primaryWarehouse = \App\Models\Warehouse::where('is_active', true)->first();
+                                if (! $primaryWarehouse) {
+                                    $component->state(0);
+                                    return;
+                                }
+                                $balance = \App\Models\StockBalance::where('part_id', $record->id)
+                                    ->where('warehouse_id', $primaryWarehouse->id)
+                                    ->first();
+                                $component->state($balance ? $balance->qty_on_hand : 0);
+                            })
+                            ->dehydrated(false),
+                    ])->columns(['default' => 1, 'md' => 4]),
                     
                 \Filament\Schemas\Components\Section::make('Harga & Status')
                     ->description('Harga pembelian, harga jual standar, dan status aktif produk.')
@@ -124,7 +147,8 @@ class ProductResource extends Resource
                             ->label('Harga Pokok (HPP / Modal)')
                             ->prefix('Rp')
                             ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
-                            ->stripCharacters('.')
+                            ->stripCharacters(['.', ',', ' ', 'R', 'p', 'r', 'p'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) preg_replace('/[^\d]/', '', (string) $state) : 0)
                             ->numeric()
                             ->default(0)
                             ->visible(fn (): bool => auth()->user()?->isOwner() ?? false)
@@ -134,7 +158,8 @@ class ProductResource extends Resource
                             ->label(fn (): string => (auth()->user()?->isOwner() ?? false) ? 'Harga Jual Standar' : 'Harga Jual Kasir')
                             ->prefix('Rp')
                             ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
-                            ->stripCharacters('.')
+                            ->stripCharacters(['.', ',', ' ', 'R', 'p', 'r', 'p'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) preg_replace('/[^\d]/', '', (string) $state) : 0)
                             ->required()
                             ->numeric()
                             ->default(0),

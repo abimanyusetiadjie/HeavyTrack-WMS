@@ -152,7 +152,53 @@ class AuditDatabaseCommand extends Command
         }
 
         $this->newLine();
-        $this->info("5. EVALUASI DAN REKOMENDASI QA:");
+        $this->info("5. AUDIT PRODUK & HARGA YANG TERAKHIR DIUBAH (LATEST UPDATED PARTS):");
+        $parts = Part::with('stockBalances')->orderByDesc('updated_at')->take(10)->get();
+        if ($parts->isEmpty()) {
+            $this->warn("   Belum ada data produk di database.");
+        } else {
+            $partHeaders = ['ID', 'Nomor Part', 'Nama Barang', 'Harga Jual', 'HPP Modal', 'Min Stok', 'Total Stok', 'Terakhir Diubah'];
+            $partRows = [];
+            foreach ($parts as $p) {
+                $totStock = $p->stockBalances->sum('qty_on_hand');
+                $partRows[] = [
+                    $p->id,
+                    $p->part_number,
+                    \Illuminate\Support\Str::limit($p->name, 25),
+                    'Rp ' . number_format((float) ($p->selling_price ?? 0), 0, ',', '.'),
+                    'Rp ' . number_format((float) ($p->getRawOriginal('cost_price') ?? 0), 0, ',', '.'),
+                    $p->min_stock_level ?? 5,
+                    $totStock . ' ' . ($p->unit ?? 'PCS'),
+                    $p->updated_at ? $p->updated_at->format('Y-m-d H:i:s') : '-',
+                ];
+            }
+            $this->table($partHeaders, $partRows);
+        }
+
+        $this->newLine();
+        $this->info("6. AUDIT MUTASI STOK TERAKHIR (LATEST STOCK LEDGER):");
+        $ledgers = \App\Models\StockLedger::with('part')->orderByDesc('id')->take(6)->get();
+        if ($ledgers->isEmpty()) {
+            $this->warn("   Belum ada catatan mutasi stok di database.");
+        } else {
+            $ledgerHeaders = ['ID', 'Waktu', 'Nomor Part', 'Jenis Transaksi', 'No Ref', 'Qty Mutasi', 'Stok Akhir'];
+            $ledgerRows = [];
+            foreach ($ledgers as $l) {
+                $ledgerRows[] = [
+                    $l->id,
+                    $l->created_at ? $l->created_at->format('Y-m-d H:i') : '-',
+                    $l->part?->part_number ?? '-',
+                    $l->reference_type,
+                    $l->reference_number ?? '-',
+                    ($l->qty_change > 0 ? '+' : '') . $l->qty_change,
+                    $l->balance_after,
+                ];
+            }
+            $this->table($ledgerHeaders, $ledgerRows);
+        }
+
+        $this->newLine();
+        $this->info("7. EVALUASI DAN REKOMENDASI QA:");
         if ($trashedDO > 0) {
             $this->warn("   [INFO] Terdapat {$trashedDO} data Surat Jalan yang berstatus 'Soft-Deleted'.");
             $this->line("   Pada Filament, data ini otomatis disembunyikan oleh filter.");
