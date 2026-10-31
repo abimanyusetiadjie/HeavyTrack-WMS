@@ -99,6 +99,64 @@ class MigrateSqliteToMysqlCommand extends Command
         $sourceSize = round(filesize($sqlitePath) / 1024, 2);
         $this->info("   [OKE] File SQLite ditemukan (Ukuran: {$sourceSize} KB).");
 
+        $doCount = 0;
+        $invCount = 0;
+        $partCount = 0;
+        try {
+            $pdoCheck = new \PDO("sqlite:" . $sqlitePath);
+            $stmtDo = $pdoCheck->query("SELECT count(*) FROM delivery_orders");
+            if ($stmtDo) $doCount = (int) $stmtDo->fetchColumn();
+            $stmtInv = $pdoCheck->query("SELECT count(*) FROM invoices");
+            if ($stmtInv) $invCount = (int) $stmtInv->fetchColumn();
+            $stmtPart = $pdoCheck->query("SELECT count(*) FROM parts");
+            if ($stmtPart) $partCount = (int) $stmtPart->fetchColumn();
+        } catch (\Throwable $e) {}
+
+        $this->line("   - Ringkasan Data   : <comment>{$partCount} Produk, {$doCount} Surat Jalan, {$invCount} Faktur</comment>");
+
+        // Jika file ini memiliki 0 Surat Jalan, cek apakah ada file cadangan lain yang memiliki data Surat Jalan
+        if ($doCount === 0 && !$this->option('source')) {
+            $scanDirs = [
+                base_path('Backup_HeavyTrack'),
+                base_path('storage/app/backups'),
+                base_path('database'),
+                base_path(),
+                dirname(base_path()),
+            ];
+            $betterSource = null;
+            $maxDos = 0;
+            foreach ($scanDirs as $d) {
+                if (!is_dir($d)) continue;
+                $files = glob($d . '/*.sqlite*') ?: [];
+                foreach ($files as $f) {
+                    if (str_ends_with($f, '-shm') || str_ends_with($f, '-wal')) continue;
+                    $real = realpath($f) ?: $f;
+                    if ($real === realpath($sqlitePath)) continue;
+                    try {
+                        $p = new \PDO("sqlite:" . $real);
+                        $s = $p->query("SELECT count(*) FROM delivery_orders");
+                        if ($s) {
+                            $c = (int) $s->fetchColumn();
+                            if ($c > $maxDos) {
+                                $maxDos = $c;
+                                $betterSource = $real;
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
+            }
+
+            if ($betterSource && $maxDos > 0) {
+                $this->newLine();
+                $this->warn("   [PERHATIAN] File SQLite default ({$sqlitePath}) memiliki 0 Surat Jalan,");
+                $this->warn("   tetapi ditemukan file cadangan: {$betterSource} yang menyimpan {$maxDos} SURAT JALAN!");
+                if ($this->confirm("   Apakah Anda ingin menggunakan file cadangan tersebut agar data Surat Jalan ikut tersalin?", true)) {
+                    $sqlitePath = $betterSource;
+                    $this->info("   -> Sumber data dialihkan ke: {$sqlitePath}");
+                }
+            }
+        }
+
         // 3. Konfirmasi dari user
         $this->newLine();
         if (!$this->confirm("Apakah Anda ingin memulai migrasi skema tabel dan seluruh data ke database MySQL '{$mysqlDb}'?", true)) {
