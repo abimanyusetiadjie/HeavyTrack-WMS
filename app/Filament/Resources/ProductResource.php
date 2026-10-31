@@ -97,7 +97,7 @@ class ProductResource extends Resource
                     ])->columns(['default' => 1, 'md' => 2]),
                     
                 \Filament\Schemas\Components\Section::make('Stok & Lokasi')
-                    ->description('Pengaturan lokasi penyimpanan, batas stok minimum, dan saldo fisik barang.')
+                    ->description('Pengaturan lokasi penyimpanan dan batas stok minimum.')
                     ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('bin_location')
@@ -115,29 +115,7 @@ class ProductResource extends Resource
                             ->required()
                             ->numeric()
                             ->default(5),
-
-                        Forms\Components\TextInput::make('initial_stock')
-                            ->label('Stok Fisik Saat Ini')
-                            ->helperText('Jumlah saldo fisik barang saat ini di Gudang. Perubahan angka otomatis memperbarui stok dan mencatat mutasi.')
-                            ->numeric()
-                            ->default(0)
-                            ->afterStateHydrated(function (Forms\Components\TextInput $component, ?Part $record) {
-                                if (! $record) {
-                                    $component->state(0);
-                                    return;
-                                }
-                                $primaryWarehouse = \App\Models\Warehouse::where('is_active', true)->first();
-                                if (! $primaryWarehouse) {
-                                    $component->state(0);
-                                    return;
-                                }
-                                $balance = \App\Models\StockBalance::where('part_id', $record->id)
-                                    ->where('warehouse_id', $primaryWarehouse->id)
-                                    ->first();
-                                $component->state($balance ? $balance->qty_on_hand : 0);
-                            })
-                            ->dehydrated(false),
-                    ])->columns(['default' => 1, 'md' => 4]),
+                    ])->columns(['default' => 1, 'md' => 3]),
                     
                 \Filament\Schemas\Components\Section::make('Harga & Status')
                     ->description('Harga pembelian, harga jual standar, dan status aktif produk.')
@@ -146,23 +124,26 @@ class ProductResource extends Resource
                         Forms\Components\TextInput::make('cost_price')
                             ->label('Harga Pokok (HPP / Modal)')
                             ->prefix('Rp')
+                            ->placeholder('0')
                             ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
                             ->stripCharacters(['.', ',', ' ', 'R', 'p', 'r', 'p'])
+                            ->formatStateUsing(fn ($state) => filled($state) && (float) $state > 0 ? (int) $state : null)
                             ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) preg_replace('/[^\d]/', '', (string) $state) : 0)
                             ->numeric()
-                            ->default(0)
+                            ->nullable()
                             ->visible(fn (): bool => auth()->user()?->isOwner() ?? false)
                             ->dehydrated(fn (): bool => auth()->user()?->isOwner() ?? false),
                             
                         Forms\Components\TextInput::make('selling_price')
                             ->label(fn (): string => (auth()->user()?->isOwner() ?? false) ? 'Harga Jual Standar' : 'Harga Jual Kasir')
                             ->prefix('Rp')
+                            ->placeholder('0')
                             ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
                             ->stripCharacters(['.', ',', ' ', 'R', 'p', 'r', 'p'])
+                            ->formatStateUsing(fn ($state) => filled($state) && (float) $state > 0 ? (int) $state : null)
                             ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) preg_replace('/[^\d]/', '', (string) $state) : 0)
-                            ->required()
-                            ->numeric()
-                            ->default(0),
+                            ->nullable()
+                            ->numeric(),
                             
                         Forms\Components\Toggle::make('is_active')
                             ->label('Status Aktif')
@@ -199,14 +180,14 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('cost_price')
                     ->label('HPP (Modal)')
                     ->sortable()
-                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float) ($state ?? 0), 0, ',', '.'))
+                    ->formatStateUsing(fn ($state) => (float) ($state ?? 0) > 0 ? 'Rp ' . number_format((float) $state, 0, ',', '.') : '-')
                     ->visible(fn (): bool => auth()->user()?->isOwner() ?? false),
 
                 Tables\Columns\TextColumn::make('selling_price')
                     ->label(fn (): string => (auth()->user()?->isOwner() ?? false) ? 'Harga Jual' : 'Harga')
                     ->sortable()
                     ->weight('semibold')
-                    ->formatStateUsing(fn ($state) => 'Rp ' . number_format((float) ($state ?? 0), 0, ',', '.')),
+                    ->formatStateUsing(fn ($state) => (float) ($state ?? 0) > 0 ? 'Rp ' . number_format((float) $state, 0, ',', '.') : '-'),
                     
                 Tables\Columns\TextColumn::make('stock_balances_sum_qty_on_hand')
                     ->label('Total Stok')

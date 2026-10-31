@@ -2,15 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\ProductResource\Pages\CreateProduct;
-use App\Filament\Resources\ProductResource\Pages\EditProduct;
+use App\Filament\Resources\ProductResource;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Part;
-use App\Models\StockBalance;
-use App\Models\StockLedger;
 use App\Models\User;
-use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,80 +14,51 @@ class ProductStockAndPriceUpdateTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_can_update_product_price_and_physical_stock_directly(): void
+    public function test_price_fields_format_empty_when_zero_and_can_update_cleanly(): void
     {
         $owner = User::factory()->create();
         $ownerRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner']);
         $owner->syncRoles([$ownerRole]);
         $this->actingAs($owner);
 
-        $warehouse = Warehouse::create([
-            'name' => 'Gudang Utama (Pusat)',
-            'code' => 'GDG-PUSAT',
-            'is_active' => true,
-        ]);
-
         $brand = Brand::create(['name' => 'Komatsu', 'code' => 'KOM']);
         $cat = Category::create(['name' => 'Filter', 'code' => 'FLT']);
 
-        // 1. Create product with initial stock
-        $createPage = new CreateProduct();
+        // 1. Buat produk baru dengan harga 0
         $part = Part::create([
             'part_number' => 'KOM-100',
             'name' => 'Komatsu Air Filter',
             'brand_id' => $brand->id,
             'category_id' => $cat->id,
-            'selling_price' => 150000,
-            'cost_price' => 100000,
+            'selling_price' => 0,
+            'cost_price' => 0,
             'min_stock_level' => 5,
         ]);
 
-        // Simulate afterCreate
-        $refProp = new \ReflectionProperty($createPage, 'record');
-        $refProp->setAccessible(true);
-        $refProp->setValue($createPage, $part);
-        $createPage->data = ['initial_stock' => 75];
+        // Verifikasi format table kolom
+        $columns = ProductResource::table(new \Filament\Tables\Table(new \App\Filament\Resources\ProductResource\Pages\ListProducts()))->getColumns();
+        $this->assertArrayHasKey('cost_price', $columns);
+        $this->assertArrayHasKey('selling_price', $columns);
 
-        $afterCreateMethod = new \ReflectionMethod($createPage, 'afterCreate');
-        $afterCreateMethod->setAccessible(true);
-        $afterCreateMethod->invoke($createPage);
+        $costCol = $columns['cost_price'];
+        $sellingCol = $columns['selling_price'];
 
-        // Check stock balance created
-        $balance = StockBalance::where('part_id', $part->id)->where('warehouse_id', $warehouse->id)->first();
-        $this->assertNotNull($balance);
-        $this->assertEquals(75, $balance->qty_on_hand);
+        $costCol->record($part);
+        $sellingCol->record($part);
 
-        // Check stock ledger created
-        $ledger = StockLedger::where('part_id', $part->id)->latest('id')->first();
-        $this->assertNotNull($ledger);
-        $this->assertEquals(75, $ledger->qty_change);
-        $this->assertEquals(75, $ledger->balance_after);
+        $this->assertEquals('-', $costCol->formatState(0));
+        $this->assertEquals('-', $sellingCol->formatState(0));
+        $this->assertEquals('Rp 150.000', $sellingCol->formatState(150000));
+        $this->assertEquals('Rp 100.000', $costCol->formatState(100000));
 
-        // 2. Edit product price and physical stock
+        // 2. Update harga dengan format rupiah
         $part->update([
-            'selling_price' => 200000,
-            'cost_price' => 130000,
+            'selling_price' => '250.000',
+            'cost_price' => '175.000',
         ]);
 
-        $editPage = new EditProduct();
-        $refPropEdit = new \ReflectionProperty($editPage, 'record');
-        $refPropEdit->setAccessible(true);
-        $refPropEdit->setValue($editPage, $part);
-        $editPage->data = ['initial_stock' => 120];
-
-        $afterSaveMethod = new \ReflectionMethod($editPage, 'afterSave');
-        $afterSaveMethod->setAccessible(true);
-        $afterSaveMethod->invoke($editPage);
-
-        // Check updated stock balance
-        $balance->refresh();
-        $this->assertEquals(120, $balance->qty_on_hand);
-
-        // Check updated stock ledger
-        $ledgerEdit = StockLedger::where('part_id', $part->id)->latest('id')->first();
-        $this->assertEquals(45, $ledgerEdit->qty_change); // 120 - 75 = +45
-        $this->assertEquals(75, $ledgerEdit->balance_before);
-        $this->assertEquals(120, $ledgerEdit->balance_after);
-        $this->assertEquals('STOCK_ADJUSTMENT', $ledgerEdit->reference_type);
+        $part->refresh();
+        $this->assertEquals(250000, $part->selling_price);
+        $this->assertEquals(175000, $part->cost_price);
     }
 }
