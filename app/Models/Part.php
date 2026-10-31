@@ -51,6 +51,26 @@ class Part extends Model
         return (float) ($value ?? 0);
     }
 
+    public function setSellingPriceAttribute($value): void
+    {
+        if (is_string($value)) {
+            $clean = preg_replace('/[^\d]/', '', $value);
+            $this->attributes['selling_price'] = (float) ($clean ?: 0);
+        } else {
+            $this->attributes['selling_price'] = (float) ($value ?? 0);
+        }
+    }
+
+    public function setCostPriceAttribute($value): void
+    {
+        if (is_string($value)) {
+            $clean = preg_replace('/[^\d]/', '', $value);
+            $this->attributes['cost_price'] = (float) ($clean ?: 0);
+        } else {
+            $this->attributes['cost_price'] = (float) ($value ?? 0);
+        }
+    }
+
     public function brand() {
         return $this->belongsTo(Brand::class);
     }

@@ -174,6 +174,7 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('10s')
             ->header(view('filament.components.product-search-bar'))
             ->searchPlaceholder('Cari nama barang, barcode, atau SKU...')
             ->columns([

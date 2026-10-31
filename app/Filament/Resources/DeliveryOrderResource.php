@@ -285,6 +285,7 @@ class DeliveryOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('10s')
             ->columns([
                 Tables\Columns\TextColumn::make('do_number')->label('Nomor SJ')->searchable()->fontFamily('mono')->weight('bold'),
                 Tables\Columns\TextColumn::make('delivery_date')->label('Tgl Kirim')->date('d M Y')->sortable(),
