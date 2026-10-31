@@ -1,5 +1,6 @@
 @php
     $currentSearch = $this->tableSearch ?? '';
+    $currentBrand = $this->filterBrand ?? '';
     $currentCategory = $this->filterCategory ?? '';
     $isLowStock = (bool) ($this->filterLowStock ?? false);
 @endphp
@@ -30,7 +31,27 @@
         @endif
     </div>
 
-    <!-- 2. Category Dropdown -->
+    <!-- 2. Brand Dropdown (Di sebelah kiri kategori) -->
+    <div class="product-brand-wrapper">
+        <select wire:model.live="filterBrand" class="product-brand-select">
+            <option value="">Semua Merk</option>
+            @php
+                $brandList = method_exists($this, 'getBrands') 
+                    ? $this->getBrands() 
+                    : \App\Models\Brand::orderBy('name')->get();
+            @endphp
+            @foreach($brandList as $brand)
+                <option value="{{ $brand->id }}" {{ (string)$currentBrand === (string)$brand->id ? 'selected' : '' }}>
+                    {{ $brand->name }}
+                </option>
+            @endforeach
+        </select>
+        <svg class="product-brand-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+        </svg>
+    </div>
+
+    <!-- 3. Category Dropdown -->
     <div class="product-category-wrapper">
         <select wire:model.live="filterCategory" class="product-category-select">
             <option value="">Semua Kategori</option>
@@ -50,7 +71,7 @@
         </svg>
     </div>
 
-    <!-- 3. Low Stock Button (< 100) -->
+    <!-- 4. Low Stock Button (< 100) -->
     <button 
         type="button" 
         wire:click="toggleLowStock" 
@@ -167,11 +188,60 @@
     color: #0f172a !important;
 }
 
-/* 2. Dropdown Kategori */
+/* 2. Dropdown Merk */
+.product-brand-wrapper {
+    position: relative !important;
+    width: 190px !important;
+    min-width: 150px !important;
+    flex-shrink: 0 !important;
+}
+
+.product-brand-select {
+    width: 100% !important;
+    height: 42px !important;
+    padding: 8px 36px 8px 14px !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+    font-weight: 500 !important;
+    color: #334155 !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    outline: none !important;
+    cursor: pointer !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    transition: all 0.15s ease-in-out !important;
+    box-sizing: border-box !important;
+}
+
+.product-brand-select:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
+.dark .product-brand-select {
+    background-color: #27272a !important;
+    border-color: #3f3f46 !important;
+    color: #f8fafc !important;
+}
+
+.product-brand-arrow {
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 18px !important;
+    height: 18px !important;
+    color: #64748b !important;
+    pointer-events: none !important;
+}
+
+/* 3. Dropdown Kategori */
 .product-category-wrapper {
     position: relative !important;
-    width: 230px !important;
-    min-width: 180px !important;
+    width: 200px !important;
+    min-width: 150px !important;
     flex-shrink: 0 !important;
 }
 
@@ -216,7 +286,7 @@
     pointer-events: none !important;
 }
 
-/* 3. Tombol Warning Stok < 100 */
+/* 4. Tombol Warning Stok < 100 */
 .product-low-stock-btn {
     display: inline-flex !important;
     align-items: center !important;
@@ -270,12 +340,16 @@
     line-height: 1 !important;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .product-toolbar-card {
         flex-wrap: wrap !important;
     }
     .product-search-wrapper {
         min-width: 100% !important;
+    }
+    .product-brand-wrapper {
+        flex: 1 1 auto !important;
+        width: auto !important;
     }
     .product-category-wrapper {
         flex: 1 1 auto !important;

@@ -198,6 +198,8 @@ class ProductResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
+                Tables\Filters\SelectFilter::make('brand_id')->relationship('brand', 'name')->label('Filter Merk'),
+                Tables\Filters\SelectFilter::make('category_id')->relationship('category', 'name')->label('Filter Kategori'),
                 Tables\Filters\Filter::make('low_stock')
                     ->label('Stok Menipis (<= Batas Minimum)')
                     ->query(fn (Builder $query) => $query->whereRaw('(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= parts.min_stock_level')),

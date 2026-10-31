@@ -13,8 +13,14 @@ class ListProducts extends ListRecords
 {
     protected static string $resource = ProductResource::class;
 
+    public ?string $filterBrand = '';
     public ?string $filterCategory = '';
     public bool $filterLowStock = false;
+
+    public function updatedFilterBrand(): void
+    {
+        $this->resetPage();
+    }
 
     public function updatedFilterCategory(): void
     {
@@ -25,6 +31,11 @@ class ListProducts extends ListRecords
     {
         $this->filterLowStock = ! $this->filterLowStock;
         $this->resetPage();
+    }
+
+    public function getBrands(): \Illuminate\Database\Eloquent\Collection
+    {
+        return \App\Models\Brand::orderBy('name')->get();
     }
 
     public function getCategories(): \Illuminate\Database\Eloquent\Collection
@@ -76,6 +87,7 @@ class ListProducts extends ListRecords
     protected function getTableQuery(): Builder
     {
         return parent::getTableQuery()
+            ->when($this->filterBrand, fn ($query) => $query->where('brand_id', $this->filterBrand))
             ->when($this->filterCategory, fn ($query) => $query->where('category_id', $this->filterCategory))
             ->when($this->filterLowStock, fn ($query) => $query->whereRaw(
                 '(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) < 100'
