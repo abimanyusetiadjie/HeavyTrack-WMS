@@ -115,7 +115,9 @@ class DeliveryOrderResource extends Resource
                             
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang Asal')
-                            ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true))->createOptionForm([ 
+                            ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true))
+                            ->default(fn () => \App\Models\Warehouse::where('is_active', true)->value('id'))
+                            ->createOptionForm([ 
                                 \Filament\Forms\Components\TextInput::make('name')
                                     ->label('Nama Gudang')
                                     ->required()
@@ -136,11 +138,12 @@ class DeliveryOrderResource extends Resource
                             ->required()
                             ->reactive()
                             ->searchable()
+                            ->preload()
                             ->disabled(fn (?DeliveryOrder $record) => in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true)),
                             
                         Forms\Components\Select::make('contact_id')
                             ->label('Pelanggan / Tujuan')
-                            ->relationship('contact', 'company_name', fn ($query) => $query->whereIn('type', ['CUSTOMER', 'BOTH']))
+                            ->relationship('contact', 'company_name', fn (Builder $query) => $query->whereIn('type', ['CUSTOMER', 'BOTH'])->orderBy('company_name'))
                             ->createOptionForm([ 
                                 Forms\Components\TextInput::make('company_name')
                                     ->label('Nama Perusahaan / Pembeli')
@@ -165,12 +168,15 @@ class DeliveryOrderResource extends Resource
                                     ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state), 
                             ])
                             ->required()
-                            ->searchable(),
+                            ->searchable()
+                            ->preload(),
 
-                        Forms\Components\Select::make('sales_order_id')
+                        Forms\Components\TextInput::make('sales_order_reference')
                             ->label('Referensi Sales Order (Jika Ada)')
-                            ->relationship('salesOrder', 'order_number')
-                            ->searchable(),
+                            ->placeholder('CONTOH: SO-202610-001 ATAU PO-KLIEN-99')
+                            ->maxLength(100)
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? mb_strtoupper($state, 'UTF-8') : $state),
 
                         Forms\Components\TextInput::make('driver_name')
                             ->label('Nama Supir')
@@ -291,6 +297,7 @@ class DeliveryOrderResource extends Resource
                 Tables\Columns\TextColumn::make('delivery_date')->label('Tgl Kirim')->date('d M Y')->sortable(),
                 Tables\Columns\TextColumn::make('warehouse.name')->label('Gudang Asal'),
                 Tables\Columns\TextColumn::make('contact.company_name')->label('Tujuan / Pelanggan'),
+                Tables\Columns\TextColumn::make('sales_order_reference')->label('Ref. SO / PO')->searchable()->placeholder('-'),
                 Tables\Columns\TextColumn::make('items_count')
                     ->counts('items')
                     ->label('Total Item')

@@ -103,6 +103,7 @@ class GoodsReceiptResource extends Resource
                         Forms\Components\Select::make('warehouse_id')
                             ->label('Gudang Tujuan')
                             ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true))
+                            ->default(fn () => \App\Models\Warehouse::where('is_active', true)->value('id'))
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('name')->label('Nama Gudang')->required()->maxLength(100),
                                 Forms\Components\TextInput::make('code')->label('Kode')->maxLength(50),
@@ -110,11 +111,12 @@ class GoodsReceiptResource extends Resource
                             ])
                             ->required()
                             ->searchable()
+                            ->preload()
                             ->disabled(fn (?GoodsReceipt $record) => $record?->status === 'RECEIVED'),
 
                         Forms\Components\Select::make('contact_id')
                             ->label('Pemasok / Supplier')
-                            ->relationship('contact', 'company_name', fn ($query) => $query->whereIn('type', ['SUPPLIER', 'BOTH']))
+                            ->relationship('contact', 'company_name', fn (Builder $query) => $query->whereIn('type', ['SUPPLIER', 'BOTH'])->orderBy('company_name'))
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('company_name')->label('Nama Perusahaan Supplier')->required()->maxLength(255),
                                 Forms\Components\Select::make('type')->label('Jenis Kontak')->options([
@@ -125,7 +127,8 @@ class GoodsReceiptResource extends Resource
                                 Forms\Components\TextInput::make('phone')->label('Telepon/WA')->tel()->maxLength(50),
                                 Forms\Components\Textarea::make('address')->label('Alamat')->maxLength(500),
                             ])
-                            ->searchable(),
+                            ->searchable()
+                            ->preload(),
 
                         Forms\Components\TextInput::make('supplier_do_number')
                             ->label('No. Surat Jalan / Invoice Supplier')

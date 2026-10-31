@@ -138,6 +138,12 @@
             <td><strong>NO. KENDARAAN</strong></td>
             <td>: {{ strtoupper($do->vehicle_plate_number ?? '-') }}</td>
         </tr>
+        @if(!empty($do->sales_order_reference) || !empty($do->salesOrder?->order_number))
+        <tr>
+            <td><strong>REF. SO / PO</strong></td>
+            <td colspan="3">: {{ strtoupper($do->sales_order_reference ?? $do->salesOrder?->order_number) }}</td>
+        </tr>
+        @endif
     </table>
 
     <table class="items-table">

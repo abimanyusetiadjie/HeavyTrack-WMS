@@ -26,6 +26,9 @@ class DeliveryOrder extends Model
             if (!empty($do->notes)) {
                 $do->notes = mb_strtoupper($do->notes, 'UTF-8');
             }
+            if (!empty($do->sales_order_reference)) {
+                $do->sales_order_reference = mb_strtoupper($do->sales_order_reference, 'UTF-8');
+            }
         });
     }
 
