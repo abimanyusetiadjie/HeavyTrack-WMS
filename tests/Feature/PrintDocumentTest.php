@@ -284,4 +284,70 @@ class PrintDocumentTest extends TestCase
         // Pengecualian lowercase untuk email
         $this->assertStringContainsString('revaldojulian07@gmail.com', $viewContent);
     }
+
+    public function test_delivery_order_prints_dual_copy_on_single_a4_page(): void
+    {
+        $user = User::where('email', 'owner@heavytrack.com')->first() ?: User::factory()->create([
+            'email' => 'testowner_dual@heavytrack.com',
+            'name' => 'Owner Dual',
+        ]);
+
+        $contact = Contact::create([
+            'company_name' => 'PT Mitra Sejahtera Sentosa',
+            'type' => 'CUSTOMER',
+        ]);
+
+        $warehouse = Warehouse::create([
+            'name' => 'Gudang Utama',
+            'code' => 'GDG-01',
+        ]);
+
+        $brand = \App\Models\Brand::firstOrCreate(['name' => 'Hitachi'], ['code' => 'HIT']);
+        $cat = \App\Models\Category::firstOrCreate(['name' => 'Filter'], ['code' => 'FLT']);
+
+        $do = DeliveryOrder::create([
+            'do_number' => 'SJ/202611/0002',
+            'delivery_date' => now(),
+            'contact_id' => $contact->id,
+            'warehouse_id' => $warehouse->id,
+            'status' => 'CONFIRMED',
+            'driver_name' => 'Supir Joko Widodo',
+            'vehicle_plate_number' => 'B 1234 CD',
+            'created_by' => $user->id,
+        ]);
+
+        for ($i = 1; $i <= 5; $i++) {
+            $part = Part::create([
+                'part_number' => 'HIT-00' . $i,
+                'name' => 'Oil Filter Hitachi ' . $i,
+                'brand_id' => $brand->id,
+                'category_id' => $cat->id,
+                'selling_price' => 100000,
+                'cost_price' => 70000,
+            ]);
+
+            DeliveryOrderItem::create([
+                'delivery_order_id' => $do->id,
+                'part_id' => $part->id,
+                'qty' => $i,
+                'unit' => 'PCS',
+            ]);
+        }
+
+        $response = $this->actingAs($user)->get(route('print.delivery-order', ['deliveryOrder' => $do->id]));
+        $this->assertEquals(200, $response->status());
+
+        $viewContent = view('print.delivery-order', ['do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse'])])->render();
+        
+        // Memastikan dua rangkap (Lembar 1 & Lembar 2) dan garis pembatas cetak ada
+        $this->assertStringContainsString('LEMBAR 1: ASLI (UNTUK PELANGGAN / SUPIR)', $viewContent);
+        $this->assertStringContainsString('LEMBAR 2: COPY (ARSIP GUDANG / FINANCE)', $viewContent);
+        $this->assertStringContainsString('POTONG / GUNTING DI SINI', $viewContent);
+
+        // Verifikasi PDF DomPDF render menghasilkan tepat 1 halaman A4
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('print.delivery-order', ['do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse'])])
+            ->setPaper('a4', 'portrait');
+        $pdf->render();
+        $this->assertEquals(1, $pdf->getCanvas()->get_page_count());
+    }
 }

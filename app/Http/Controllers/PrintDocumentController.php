@@ -18,7 +18,7 @@ class PrintDocumentController extends Controller
         $deliveryOrder->load(['items.part.brand', 'contact', 'warehouse', 'creator']);
         
         $pdf = Pdf::loadView('print.delivery-order', ['do' => $deliveryOrder])
-            ->setPaper([0, 0, 609.45, 396.85], 'portrait'); // 215mm x 140mm in points
+            ->setPaper('a4', 'portrait');
             
         return $pdf->stream('Surat_Jalan_' . str_replace('/', '_', $deliveryOrder->do_number) . '.pdf');
     }

@@ -4,83 +4,135 @@
     <meta charset="utf-8">
     <title>Surat Jalan - {{ $do->do_number }}</title>
     <style>
+        @page {
+            size: a4 portrait;
+            margin: 5mm 7mm;
+        }
+        * {
+            box-sizing: border-box;
+        }
         body {
-            font-family: Arial, sans-serif;
-            font-size: 11px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8px;
             margin: 0;
-            padding: 15px;
-            color: #1e293b;
+            padding: 0;
+            color: #0f172a;
+            line-height: 1.15;
         }
         table {
             width: 100%;
             border-collapse: collapse;
         }
+        .header-table td {
+            vertical-align: middle;
+            border: none;
+            padding: 0;
+        }
         .header-box {
-            border-bottom: 2px solid #0f172a;
-            padding-bottom: 8px;
-            margin-bottom: 12px;
+            border-bottom: 1.5px solid #0f172a;
+            padding-bottom: 3px;
+            margin-bottom: 3px;
         }
         .company-name {
-            font-size: 16px;
+            font-size: 12px;
             font-weight: bold;
             color: #0f172a;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
         .company-sub {
-            font-size: 9px;
+            font-size: 6.8px;
             color: #475569;
-            margin-top: 2px;
+            margin-top: 1px;
+            line-height: 8.5px;
         }
         .doc-title {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: bold;
             color: #0f172a;
             text-align: right;
+            letter-spacing: 0.5px;
         }
         .doc-number {
-            font-size: 11px;
+            font-size: 9px;
             font-family: monospace;
-            color: #334155;
+            color: #1e293b;
+            text-align: right;
+            font-weight: bold;
+            margin-top: 1px;
+        }
+        .copy-badge {
             text-align: right;
             margin-top: 2px;
+        }
+        .copy-badge span {
+            display: inline-block;
+            padding: 1px 5px;
+            font-size: 7px;
+            font-weight: bold;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         .meta-table td {
             vertical-align: top;
-            padding: 3px 4px;
-            font-size: 11px;
+            padding: 1px 2px;
+            font-size: 7.5px;
             text-transform: uppercase;
+            line-height: 9.5px;
         }
         .items-table {
-            margin-top: 12px;
-            margin-bottom: 12px;
+            margin-top: 3px;
+            margin-bottom: 3px;
         }
         .items-table th {
             background-color: #f1f5f9;
-            border: 1px solid #94a3b8;
-            padding: 6px 4px;
-            font-size: 10px;
+            border: 0.5px solid #64748b;
+            padding: 2.5px 3px;
+            font-size: 7px;
             text-transform: uppercase;
+            font-weight: bold;
         }
         .items-table td {
-            border: 1px solid #cbd5e1;
-            padding: 5px 4px;
+            border: 0.5px solid #cbd5e1;
+            padding: 2px 3px;
             text-transform: uppercase;
+            font-size: 7px;
+            line-height: 9px;
         }
         .notes-box {
-            font-size: 10px;
-            margin-top: 6px;
+            font-size: 7px;
+            margin-top: 2px;
             text-transform: uppercase;
+            color: #334155;
+            line-height: 9px;
         }
         .footer-table {
-            margin-top: 20px;
+            margin-top: 4px;
             text-align: center;
             text-transform: uppercase;
         }
         .footer-table td {
-            width: 33%;
-            padding-top: 45px;
-            font-size: 10px;
+            width: 33.3%;
+            font-size: 7px;
             text-transform: uppercase;
+            vertical-align: top;
+            padding: 0 4px;
+        }
+        .sig-space {
+            height: 24px;
+        }
+        .cut-divider {
+            width: 100%;
+            margin: 6px 0;
+            text-align: center;
+        }
+        .cut-line-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .cut-line-table td {
+            padding: 0;
+            vertical-align: middle;
         }
     </style>
 </head>
@@ -89,118 +141,158 @@
         $logoPath = public_path('images/logo.png');
         $hasGd = extension_loaded('gd') && function_exists('imagecreatefrompng');
         $logoBase64 = ($hasGd && file_exists($logoPath)) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+
+        $copies = [
+            [
+                'badge' => 'LEMBAR 1: ASLI (UNTUK PELANGGAN / SUPIR)',
+                'bg' => '#0f172a',
+                'color' => '#ffffff',
+            ],
+            [
+                'badge' => 'LEMBAR 2: COPY (ARSIP GUDANG / FINANCE)',
+                'bg' => '#475569',
+                'color' => '#ffffff',
+            ],
+        ];
     @endphp
-    <div class="header-box">
-        <table>
+
+    @foreach($copies as $copy)
+    <div class="do-copy">
+        <div class="header-box">
+            <table class="header-table">
+                <tr>
+                    <td style="width: 62%; vertical-align: middle;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                @if($logoBase64)
+                                <td style="width: 34px; vertical-align: middle; padding: 0 6px 0 0; border: none;">
+                                    <img src="{{ $logoBase64 }}" style="height: 28px; width: auto; display: block;" alt="Logo" />
+                                </td>
+                                @endif
+                                <td style="vertical-align: middle; border: none; padding: 0;">
+                                    <div class="company-name">MITRA ABADI NUSANTARA</div>
+                                    <div class="company-sub">
+                                        HEAVY EQUIPMENT SPARE PARTS, HEAVY DUTY FILTRATION & INDUSTRIAL SUPPLY<br>
+                                        TELP: 081297354119 | EMAIL: <span style="text-transform: lowercase;">revaldojulian07@gmail.com</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="width: 38%; vertical-align: middle; text-align: right;">
+                        <div class="doc-title">SURAT JALAN</div>
+                        <div class="doc-number">NO: {{ strtoupper($do->do_number) }}</div>
+                        <div class="copy-badge">
+                            <span style="background-color: {{ $copy['bg'] }}; color: {{ $copy['color'] }};">
+                                {{ $copy['badge'] }}
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <table class="meta-table">
             <tr>
-                <td style="width: 65%; vertical-align: top;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            @if($logoBase64)
-                            <td style="width: 55px; vertical-align: middle; padding: 0 10px 0 0; border: none;">
-                                <img src="{{ $logoBase64 }}" style="height: 48px; width: auto; display: block;" alt="Logo" />
-                            </td>
-                            @endif
-                            <td style="vertical-align: middle; border: none; padding: 0;">
-                                <div class="company-name">MITRA ABADI NUSANTARA</div>
-                                <div class="company-sub">
-                                    HEAVY EQUIPMENT SPARE PARTS, HEAVY DUTY FILTRATION & INDUSTRIAL SUPPLY<br>
-                                    TELP: 081297354119 | EMAIL: <span style="text-transform: lowercase;">revaldojulian07@gmail.com</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
+                <td width="15%"><strong>TGL PENGIRIMAN</strong></td>
+                <td width="35%">: {{ strtoupper(\Carbon\Carbon::parse($do->delivery_date)->translatedFormat('d F Y')) }}</td>
+                <td width="15%"><strong>GUDANG ASAL</strong></td>
+                <td width="35%">: {{ strtoupper($do->warehouse->name ?? '-') }}</td>
+            </tr>
+            <tr>
+                <td><strong>PENERIMA / KLIEN</strong></td>
+                <td>: <strong>{{ strtoupper($do->contact->company_name ?? '-') }}</strong></td>
+                <td><strong>PENGEMUDI (DRIVER)</strong></td>
+                <td>: {{ strtoupper($do->driver_name ?? '-') }}</td>
+            </tr>
+            <tr>
+                <td><strong>ALAMAT TUJUAN</strong></td>
+                <td>: {{ strtoupper($do->contact->address ?? '-') }}</td>
+                <td><strong>NO. KENDARAAN</strong></td>
+                <td>: {{ strtoupper($do->vehicle_plate_number ?? '-') }}</td>
+            </tr>
+            @if(!empty($do->sales_order_reference) || !empty($do->salesOrder?->order_number))
+            <tr>
+                <td><strong>REF. SO / PO</strong></td>
+                <td colspan="3">: {{ strtoupper($do->sales_order_reference ?? $do->salesOrder?->order_number) }}</td>
+            </tr>
+            @endif
+        </table>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th width="4%" style="text-align: center;">NO</th>
+                    <th width="23%">PART NUMBER</th>
+                    <th width="45%">NAMA BARANG / SPESIFIKASI</th>
+                    <th width="14%" style="text-align: center;">JUMLAH (QTY)</th>
+                    <th width="14%" style="text-align: center;">SATUAN</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($do->items as $itemIdx => $item)
+                <tr>
+                    <td style="text-align: center;">{{ $itemIdx + 1 }}</td>
+                    <td style="font-family: monospace; font-weight: bold;">{{ strtoupper($item->part->part_number ?? '-') }}</td>
+                    <td>
+                        {{ strtoupper($item->part->name ?? '-') }}
+                        @if(isset($item->part->brand->name))<small>({{ strtoupper($item->part->brand->name) }})</small>@endif
+                        @if(!empty($item->notes))
+                        <div style="font-size: 6.5px; color: #475569; margin-top: 1px;">{{ strtoupper($item->notes) }}</div>
+                        @endif
+                    </td>
+                    <td style="text-align: center; font-weight: bold;">{{ $item->qty }}</td>
+                    <td style="text-align: center;">{{ strtoupper($item->unit) }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #64748b; padding: 6px; font-style: italic;">
+                        (BELUM ADA RINCIAN BARANG PADA SURAT JALAN INI. SILAKAN TAMBAHKAN BARANG DI MENU SURAT JALAN).
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+
+        <div class="notes-box">
+            <strong>CATATAN PENGIRIMAN:</strong> {{ strtoupper($do->notes ?? 'BARANG DIKIRIM DALAM KONDISI BAIK DAN LENGKAP.') }}
+        </div>
+
+        <table class="footer-table">
+            <tr>
+                <td>
+                    DITERIMA OLEH,
+                    <div class="sig-space"></div>
+                    (___________________)<br>
+                    TGL:
                 </td>
-                <td style="width: 35%; vertical-align: top;">
-                    <div class="doc-title">SURAT JALAN</div>
-                    <div class="doc-number">NO: {{ strtoupper($do->do_number) }}</div>
+                <td>
+                    PENGEMUDI / EKSPEDISI,
+                    <div class="sig-space"></div>
+                    ( {{ strtoupper($do->driver_name ?: '___________________') }} )
+                </td>
+                <td>
+                    HORMAT KAMI,
+                    <div class="sig-space"></div>
+                    (___________________)
                 </td>
             </tr>
         </table>
     </div>
-    
-    <table class="meta-table">
-        <tr>
-            <td width="15%"><strong>TGL PENGIRIMAN</strong></td>
-            <td width="35%">: {{ strtoupper(\Carbon\Carbon::parse($do->delivery_date)->translatedFormat('d F Y')) }}</td>
-            <td width="15%"><strong>GUDANG ASAL</strong></td>
-            <td width="35%">: {{ strtoupper($do->warehouse->name ?? '-') }}</td>
-        </tr>
-        <tr>
-            <td><strong>PENERIMA / KLIEN</strong></td>
-            <td>: <strong>{{ strtoupper($do->contact->company_name ?? '-') }}</strong></td>
-            <td><strong>PENGEMUDI (DRIVER)</strong></td>
-            <td>: {{ strtoupper($do->driver_name ?? '-') }}</td>
-        </tr>
-        <tr>
-            <td><strong>ALAMAT TUJUAN</strong></td>
-            <td>: {{ strtoupper($do->contact->address ?? '-') }}</td>
-            <td><strong>NO. KENDARAAN</strong></td>
-            <td>: {{ strtoupper($do->vehicle_plate_number ?? '-') }}</td>
-        </tr>
-        @if(!empty($do->sales_order_reference) || !empty($do->salesOrder?->order_number))
-        <tr>
-            <td><strong>REF. SO / PO</strong></td>
-            <td colspan="3">: {{ strtoupper($do->sales_order_reference ?? $do->salesOrder?->order_number) }}</td>
-        </tr>
-        @endif
-    </table>
 
-    <table class="items-table">
-        <thead>
+    @if(!$loop->last)
+    <div class="cut-divider">
+        <table class="cut-line-table">
             <tr>
-                <th width="5%" style="text-align: center;">NO</th>
-                <th width="22%">PART NUMBER</th>
-                <th width="43%">NAMA BARANG / SPESIFIKASI</th>
-                <th width="15%" style="text-align: center;">JUMLAH (QTY)</th>
-                <th width="15%" style="text-align: center;">SATUAN</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($do->items as $index => $item)
-            <tr>
-                <td style="text-align: center;">{{ $index + 1 }}</td>
-                <td style="font-family: monospace; font-weight: bold;">{{ strtoupper($item->part->part_number ?? '-') }}</td>
-                <td>
-                    {{ strtoupper($item->part->name ?? '-') }}
-                    @if(isset($item->part->brand->name))<small>({{ strtoupper($item->part->brand->name) }})</small>@endif
-                    @if(!empty($item->notes))
-                    <div style="font-size: 9px; color: #475569; margin-top: 2px;">{{ strtoupper($item->notes) }}</div>
-                    @endif
+                <td style="border-bottom: 1px dashed #64748b; width: 35%;"></td>
+                <td style="text-align: center; width: 30%; font-size: 7px; color: #475569; font-weight: bold; white-space: nowrap; padding: 0 4px;">
+                    ✂ POTONG / GUNTING DI SINI ✂
                 </td>
-                <td style="text-align: center; font-weight: bold;">{{ $item->qty }}</td>
-                <td style="text-align: center;">{{ strtoupper($item->unit) }}</td>
+                <td style="border-bottom: 1px dashed #64748b; width: 35%;"></td>
             </tr>
-            @empty
-            <tr>
-                <td colspan="5" style="text-align: center; color: #64748b; padding: 12px; font-style: italic;">
-                    (BELUM ADA RINCIAN BARANG PADA SURAT JALAN INI. SILAKAN TAMBAHKAN BARANG DI MENU SURAT JALAN).
-                </td>
-            </tr>
-            @endforelse
-        </tbody>
-    </table>
-
-    <div class="notes-box">
-        <strong>CATATAN PENGIRIMAN:</strong> {{ strtoupper($do->notes ?? 'BARANG DIKIRIM DALAM KONDISI BAIK DAN LENGKAP.') }}
+        </table>
     </div>
-
-    <table class="footer-table">
-        <tr>
-            <td>
-                DITERIMA OLEH,<br><br><br><br>
-                (___________________)<br>
-                TGL:
-            </td>
-            <td>
-                PENGEMUDI / EKSPEDISI,<br><br><br><br>
-                ( {{ strtoupper($do->driver_name ?: '___________________') }} )
-            </td>
-            <td>
-                HORMAT KAMI,<br><br><br><br><br>
-                (___________________)
-            </td>
-        </tr>
-    </table>
+    @endif
+    @endforeach
 </body>
 </html>
