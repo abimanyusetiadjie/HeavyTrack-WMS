@@ -16,9 +16,15 @@ class PrintDocumentController extends Controller
         abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Surat Jalan ini.');
 
         $deliveryOrder->load(['items.part.brand', 'contact', 'warehouse', 'creator']);
+
+        $format = request()->query('format', 'auto');
+        $itemCount = $deliveryOrder->items->count();
+        $isCompact = ($format === 'compact') || ($format === 'auto' && $itemCount <= 12);
         
-        $pdf = Pdf::loadView('print.delivery-order', ['do' => $deliveryOrder])
-            ->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView('print.delivery-order', [
+            'do' => $deliveryOrder,
+            'isCompact' => $isCompact,
+        ])->setPaper('a4', 'portrait');
             
         return $pdf->stream('Surat_Jalan_' . str_replace('/', '_', $deliveryOrder->do_number) . '.pdf');
     }

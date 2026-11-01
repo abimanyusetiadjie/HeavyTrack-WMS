@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Surat Jalan - {{ $do->do_number }}</title>
+    @if($isCompact ?? true)
     <style>
         @page {
             size: a4 portrait;
@@ -83,6 +84,10 @@
         .items-table {
             margin-top: 3px;
             margin-bottom: 3px;
+            page-break-inside: auto;
+        }
+        .items-table tr {
+            page-break-inside: avoid;
         }
         .items-table th {
             background-color: #f1f5f9;
@@ -110,6 +115,7 @@
             margin-top: 4px;
             text-align: center;
             text-transform: uppercase;
+            page-break-inside: avoid;
         }
         .footer-table td {
             width: 33.3%;
@@ -135,6 +141,135 @@
             vertical-align: middle;
         }
     </style>
+    @else
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 10mm 12mm;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10px;
+            margin: 0;
+            padding: 0;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .header-table td {
+            vertical-align: middle;
+            border: none;
+            padding: 0;
+        }
+        .header-box {
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .company-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+        }
+        .company-sub {
+            font-size: 8.5px;
+            color: #475569;
+            margin-top: 2px;
+            line-height: 11px;
+        }
+        .doc-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f172a;
+            text-align: right;
+            letter-spacing: 0.5px;
+        }
+        .doc-number {
+            font-size: 11px;
+            font-family: monospace;
+            color: #1e293b;
+            text-align: right;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+        .copy-badge {
+            text-align: right;
+            margin-top: 4px;
+        }
+        .copy-badge span {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 9px;
+            font-weight: bold;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .meta-table td {
+            vertical-align: top;
+            padding: 3px 4px;
+            font-size: 9.5px;
+            text-transform: uppercase;
+            line-height: 13px;
+        }
+        .items-table {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            page-break-inside: auto;
+        }
+        .items-table tr {
+            page-break-inside: avoid;
+        }
+        .items-table th {
+            background-color: #f1f5f9;
+            border: 1px solid #64748b;
+            padding: 5px 6px;
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .items-table td {
+            border: 1px solid #cbd5e1;
+            padding: 4.5px 6px;
+            text-transform: uppercase;
+            font-size: 9px;
+            line-height: 12px;
+        }
+        .notes-box {
+            font-size: 9px;
+            margin-top: 6px;
+            text-transform: uppercase;
+            color: #334155;
+            line-height: 12px;
+        }
+        .footer-table {
+            margin-top: 15px;
+            text-align: center;
+            text-transform: uppercase;
+            page-break-inside: avoid;
+        }
+        .footer-table td {
+            width: 33.3%;
+            font-size: 9px;
+            text-transform: uppercase;
+            vertical-align: top;
+            padding: 0 8px;
+        }
+        .sig-space {
+            height: 45px;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+    </style>
+    @endif
 </head>
 <body>
     @php
@@ -165,8 +300,8 @@
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr>
                                 @if($logoBase64)
-                                <td style="width: 34px; vertical-align: middle; padding: 0 6px 0 0; border: none;">
-                                    <img src="{{ $logoBase64 }}" style="height: 28px; width: auto; display: block;" alt="Logo" />
+                                <td style="width: {{ ($isCompact ?? true) ? '34px' : '48px' }}; vertical-align: middle; padding: 0 6px 0 0; border: none;">
+                                    <img src="{{ $logoBase64 }}" style="height: {{ ($isCompact ?? true) ? '28px' : '40px' }}; width: auto; display: block;" alt="Logo" />
                                 </td>
                                 @endif
                                 <td style="vertical-align: middle; border: none; padding: 0;">
@@ -238,7 +373,7 @@
                         {{ strtoupper($item->part->name ?? '-') }}
                         @if(isset($item->part->brand->name))<small>({{ strtoupper($item->part->brand->name) }})</small>@endif
                         @if(!empty($item->notes))
-                        <div style="font-size: 6.5px; color: #475569; margin-top: 1px;">{{ strtoupper($item->notes) }}</div>
+                        <div style="font-size: {{ ($isCompact ?? true) ? '6.5px' : '8px' }}; color: #475569; margin-top: 1px;">{{ strtoupper($item->notes) }}</div>
                         @endif
                     </td>
                     <td style="text-align: center; font-weight: bold;">{{ $item->qty }}</td>
@@ -246,7 +381,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" style="text-align: center; color: #64748b; padding: 6px; font-style: italic;">
+                    <td colspan="5" style="text-align: center; color: #64748b; padding: {{ ($isCompact ?? true) ? '6px' : '15px' }}; font-style: italic;">
                         (BELUM ADA RINCIAN BARANG PADA SURAT JALAN INI. SILAKAN TAMBAHKAN BARANG DI MENU SURAT JALAN).
                     </td>
                 </tr>
@@ -281,17 +416,21 @@
     </div>
 
     @if(!$loop->last)
-    <div class="cut-divider">
-        <table class="cut-line-table">
-            <tr>
-                <td style="border-bottom: 1px dashed #64748b; width: 35%;"></td>
-                <td style="text-align: center; width: 30%; font-size: 7px; color: #475569; font-weight: bold; white-space: nowrap; padding: 0 4px;">
-                    ✂ POTONG / GUNTING DI SINI ✂
-                </td>
-                <td style="border-bottom: 1px dashed #64748b; width: 35%;"></td>
-            </tr>
-        </table>
-    </div>
+        @if($isCompact ?? true)
+        <div class="cut-divider">
+            <table class="cut-line-table">
+                <tr>
+                    <td style="border-bottom: 1px dashed #64748b; width: 35%;"></td>
+                    <td style="text-align: center; width: 30%; font-size: 7px; color: #475569; font-weight: bold; white-space: nowrap; padding: 0 4px;">
+                        ✂ POTONG / GUNTING DI SINI ✂
+                    </td>
+                    <td style="border-bottom: 1px dashed #64748b; width: 35%;"></td>
+                </tr>
+            </table>
+        </div>
+        @else
+        <div class="page-break"></div>
+        @endif
     @endif
     @endforeach
 </body>

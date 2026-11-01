@@ -345,9 +345,84 @@ class PrintDocumentTest extends TestCase
         $this->assertStringContainsString('POTONG / GUNTING DI SINI', $viewContent);
 
         // Verifikasi PDF DomPDF render menghasilkan tepat 1 halaman A4
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('print.delivery-order', ['do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse'])])
-            ->setPaper('a4', 'portrait');
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('print.delivery-order', [
+            'do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse']),
+            'isCompact' => true,
+        ])->setPaper('a4', 'portrait');
         $pdf->render();
         $this->assertEquals(1, $pdf->getCanvas()->get_page_count());
+    }
+
+    public function test_delivery_order_auto_switches_to_full_page_when_items_exceed_twelve(): void
+    {
+        $user = User::where('email', 'owner@heavytrack.com')->first() ?: User::factory()->create([
+            'email' => 'testowner_full@heavytrack.com',
+            'name' => 'Owner Full',
+        ]);
+
+        $contact = Contact::create([
+            'company_name' => 'PT Proyek Tambang Besar',
+            'type' => 'CUSTOMER',
+        ]);
+
+        $warehouse = Warehouse::create([
+            'name' => 'Gudang Utama',
+            'code' => 'GDG-01',
+        ]);
+
+        $brand = \App\Models\Brand::firstOrCreate(['name' => 'Komatsu'], ['code' => 'KOM']);
+        $cat = \App\Models\Category::firstOrCreate(['name' => 'Sparepart'], ['code' => 'SPR']);
+
+        $do = DeliveryOrder::create([
+            'do_number' => 'SJ/202611/0003',
+            'delivery_date' => now(),
+            'contact_id' => $contact->id,
+            'warehouse_id' => $warehouse->id,
+            'status' => 'CONFIRMED',
+            'driver_name' => 'Supir Wahyu',
+            'vehicle_plate_number' => 'B 5678 EF',
+            'created_by' => $user->id,
+        ]);
+
+        // Buat 15 item (melebihi 12 item)
+        for ($i = 1; $i <= 15; $i++) {
+            $part = Part::create([
+                'part_number' => 'KOM-' . str_pad($i, 4, '0', STR_PAD_LEFT),
+                'name' => 'Komatsu Hydraulic Part ' . $i,
+                'brand_id' => $brand->id,
+                'category_id' => $cat->id,
+                'selling_price' => 200000,
+                'cost_price' => 150000,
+            ]);
+
+            DeliveryOrderItem::create([
+                'delivery_order_id' => $do->id,
+                'part_id' => $part->id,
+                'qty' => $i,
+                'unit' => 'PCS',
+            ]);
+        }
+
+        // Hit route cetak secara otomatis (Smart Auto-detection)
+        $response = $this->actingAs($user)->get(route('print.delivery-order', ['deliveryOrder' => $do->id]));
+        $this->assertEquals(200, $response->status());
+
+        // Verifikasi view full page: Lembar 1 dan Lembar 2 ada, tetapi TANPA garis gunting tengah
+        $viewContent = view('print.delivery-order', [
+            'do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse']),
+            'isCompact' => false,
+        ])->render();
+
+        $this->assertStringContainsString('LEMBAR 1: ASLI (UNTUK PELANGGAN / SUPIR)', $viewContent);
+        $this->assertStringContainsString('LEMBAR 2: COPY (ARSIP GUDANG / FINANCE)', $viewContent);
+        $this->assertStringNotContainsString('POTONG / GUNTING DI SINI', $viewContent);
+
+        // Verifikasi PDF DomPDF render menghasilkan 2 halaman penuh A4 (Halaman 1 Asli, Halaman 2 Copy)
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('print.delivery-order', [
+            'do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse']),
+            'isCompact' => false,
+        ])->setPaper('a4', 'portrait');
+        $pdf->render();
+        $this->assertEquals(2, $pdf->getCanvas()->get_page_count());
     }
 }
