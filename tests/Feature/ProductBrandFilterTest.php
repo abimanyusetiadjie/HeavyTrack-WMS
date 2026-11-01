@@ -79,4 +79,34 @@ class ProductBrandFilterTest extends TestCase
         $this->assertContains('Komatsu Fuel Filter', $recordsCat);
         $this->assertContains('CAT Oil Filter', $recordsCat);
     }
+
+    public function test_products_are_automatically_sorted_and_grouped_by_brand_and_part_number(): void
+    {
+        $brandHitachi = Brand::create(['name' => 'Hitachi', 'code' => 'HTC']);
+        $brandFleetguard = Brand::create(['name' => 'Fleetguard', 'code' => 'FLG']);
+        $brandKobelco = Brand::create(['name' => 'Kobelco', 'code' => 'KOB']);
+
+        // Buat item Hitachi 1
+        $p1 = Part::create(['part_number' => '4616545', 'name' => 'Fuel Filter 4616545', 'brand_id' => $brandHitachi->id]);
+        // Buat item Fleetguard
+        $p2 = Part::create(['part_number' => 'FF5052', 'name' => 'Fuel Filter FF5052', 'brand_id' => $brandFleetguard->id]);
+        // Buat item Kobelco
+        $p3 = Part::create(['part_number' => 'VH23390', 'name' => 'Fuel Filter Element', 'brand_id' => $brandKobelco->id]);
+        // Buat item Hitachi 2 (dibuat belakangan dengan ID lebih tinggi)
+        $p4 = Part::create(['part_number' => '4616544', 'name' => 'Fuel Filter 4616544', 'brand_id' => $brandHitachi->id]);
+
+        $query = \App\Filament\Resources\ProductResource::getEloquentQuery()
+            ->whereIn('id', [$p1->id, $p2->id, $p3->id, $p4->id])
+            ->get();
+
+        $orderedPartNumbers = $query->pluck('part_number')->toArray();
+
+        // Urutan harus Fleetguard (FF5052), lalu Hitachi (4616544, 4616545), lalu Kobelco (VH23390)
+        $this->assertEquals([
+            'FF5052',
+            '4616544',
+            '4616545',
+            'VH23390',
+        ], $orderedPartNumbers);
+    }
 }

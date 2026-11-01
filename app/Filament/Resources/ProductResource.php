@@ -314,9 +314,15 @@ class ProductResource extends Resource
     
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['brand:id,name', 'category:id,name'])
+        return parent::getEloquentQuery()
+            ->with(['brand:id,name', 'category:id,name'])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
-            ]);
+            ])
+            ->orderBy(
+                \App\Models\Brand::select('name')->whereColumn('brands.id', 'parts.brand_id'),
+                'asc'
+            )
+            ->orderBy('parts.part_number', 'asc');
     }
 }
