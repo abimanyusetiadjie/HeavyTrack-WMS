@@ -209,4 +209,25 @@ class StockSynchronizationTest extends TestCase
         $response->assertSee('Koreksi Stok');
         $response->assertSee('Void / Batal');
     }
+
+    public function test_stock_ledger_resource_filter_options_match_requirements(): void
+    {
+        $this->actingAs($this->user);
+        $this->user->syncRoles([\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner'])]);
+
+        $table = \App\Filament\Resources\StockLedgerResource::table(new \Filament\Tables\Table(new \App\Filament\Resources\StockLedgerResource\Pages\ListStockLedgers()));
+        $filters = $table->getFilters();
+
+        $this->assertArrayHasKey('reference_type', $filters);
+        $filter = $filters['reference_type'];
+        $options = $filter->getOptions();
+
+        $this->assertEquals([
+            'DELIVERY_ORDER' => 'Surat Jalan (DO)',
+            'GOODS_RECEIPT' => 'Restock Masuk',
+            'STOCK_ADJUSTMENT' => 'Koreksi Stok',
+            'VOID' => 'Void / Batal',
+            'INITIAL_STOCK' => 'Saldo Awal',
+        ], $options);
+    }
 }

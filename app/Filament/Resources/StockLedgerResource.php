@@ -72,16 +72,16 @@ class StockLedgerResource extends Resource
                     ->label('Jenis Transaksi')
                     ->badge()
                     ->colors([
-                        'success' => fn ($state): bool => in_array($state, ['GOODS_RECEIPT', 'INITIAL_STOCK', 'DELIVERY_ORDER_VOID']),
-                        'danger' => fn ($state): bool => in_array($state, ['DELIVERY_ORDER', 'GOODS_RECEIPT_VOID']),
+                        'success' => fn ($state): bool => in_array($state, ['GOODS_RECEIPT', 'INITIAL_STOCK']),
+                        'danger' => fn ($state): bool => in_array($state, ['DELIVERY_ORDER', 'DELIVERY_ORDER_VOID', 'GOODS_RECEIPT_VOID']),
                         'warning' => fn ($state): bool => in_array($state, ['STOCK_ADJUSTMENT', 'MANUAL_ADJUSTMENT']),
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'GOODS_RECEIPT' => 'Barang Masuk (LPB)',
-                        'GOODS_RECEIPT_VOID' => 'Batal Masuk (Stok Ditarik)',
+                        'GOODS_RECEIPT' => 'Restock Masuk',
+                        'GOODS_RECEIPT_VOID' => 'Void / Batal (LPB)',
                         'DELIVERY_ORDER' => 'Surat Jalan (DO)',
-                        'DELIVERY_ORDER_VOID' => 'Batal Kirim (Stok Kembali)',
-                        'STOCK_ADJUSTMENT', 'MANUAL_ADJUSTMENT' => 'Penyesuaian Opname',
+                        'DELIVERY_ORDER_VOID' => 'Void / Batal (DO)',
+                        'STOCK_ADJUSTMENT', 'MANUAL_ADJUSTMENT' => 'Koreksi Stok',
                         'INITIAL_STOCK' => 'Saldo Awal',
                         default => $state,
                     }),
@@ -124,11 +124,28 @@ class StockLedgerResource extends Resource
                 Tables\Filters\SelectFilter::make('reference_type')
                     ->label('Filter Transaksi')
                     ->options([
-                        'GOODS_RECEIPT' => 'Barang Masuk (LPB)',
                         'DELIVERY_ORDER' => 'Surat Jalan (DO)',
-                        'STOCK_ADJUSTMENT' => 'Penyesuaian Opname',
+                        'GOODS_RECEIPT' => 'Restock Masuk',
+                        'STOCK_ADJUSTMENT' => 'Koreksi Stok',
+                        'VOID' => 'Void / Batal',
                         'INITIAL_STOCK' => 'Saldo Awal',
-                    ]),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (! filled($data['value'] ?? null)) {
+                            return $query;
+                        }
+
+                        return match ($data['value']) {
+                            'DELIVERY_ORDER' => $query->where('reference_type', 'DELIVERY_ORDER'),
+                            'GOODS_RECEIPT' => $query->where('reference_type', 'GOODS_RECEIPT'),
+                            'STOCK_ADJUSTMENT', 'ADJUSTMENT' => $query->whereIn('reference_type', ['STOCK_ADJUSTMENT', 'MANUAL_ADJUSTMENT']),
+                            'VOID' => $query->whereIn('reference_type', ['DELIVERY_ORDER_VOID', 'GOODS_RECEIPT_VOID']),
+                            'DELIVERY_ORDER_VOID' => $query->where('reference_type', 'DELIVERY_ORDER_VOID'),
+                            'GOODS_RECEIPT_VOID' => $query->where('reference_type', 'GOODS_RECEIPT_VOID'),
+                            'INITIAL_STOCK' => $query->where('reference_type', 'INITIAL_STOCK'),
+                            default => $query->where('reference_type', $data['value']),
+                        };
+                    }),
             ]);
     }
 
