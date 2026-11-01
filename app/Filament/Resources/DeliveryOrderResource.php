@@ -200,17 +200,41 @@ class DeliveryOrderResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
+                                    ->placeholder('Ketik nomor part, nama, atau merek...')
                                     ->options(function (callable $get) {
                                         $currentPartId = $get('part_id');
-                                        return Part::where(function (Builder $query) use ($currentPartId) {
+                                        $warehouseId = $get('../../warehouse_id') ?? \App\Models\Warehouse::where('code', 'GMA')->value('id') ?? 1;
+
+                                        $parts = Part::with(['brand:id,name', 'stockBalances' => function ($q) use ($warehouseId) {
+                                            if ($warehouseId) {
+                                                $q->where('warehouse_id', $warehouseId);
+                                            }
+                                        }])
+                                        ->where(function (Builder $query) use ($currentPartId) {
                                             $query->where('is_active', true);
                                             if ($currentPartId) {
                                                 $query->orWhere('id', $currentPartId);
                                             }
                                         })
-                                        ->select(['id', 'part_number', 'name', 'is_active'])
-                                        ->get()
-                                        ->mapWithKeys(fn ($p) => [$p->id => "{$p->part_number} - {$p->name}" . ($p->is_active ? '' : ' (Non-Aktif)')]);
+                                        ->orderBy(\App\Models\Brand::select('name')->whereColumn('brands.id', 'parts.brand_id'), 'asc')
+                                        ->orderBy('part_number', 'asc')
+                                        ->get();
+
+                                        $grouped = [];
+                                        foreach ($parts as $p) {
+                                            $brandName = mb_strtoupper($p->brand?->name ?? 'LAIN-LAIN', 'UTF-8');
+                                            $stockQty = $warehouseId ? (int) $p->stockBalances->where('warehouse_id', $warehouseId)->sum('qty_on_hand') : (int) $p->stockBalances->sum('qty_on_hand');
+                                            $unit = $p->unit ?? 'PCS';
+                                            $stockBadge = $stockQty > 0 ? "Stok: {$stockQty} {$unit}" : "Stok: 0 (KOSONG)";
+                                            $brandLabel = $p->brand?->name ? " [{$p->brand->name}]" : '';
+                                            $label = "{$p->part_number} — {$p->name}{$brandLabel} [{$stockBadge}]";
+                                            if (! $p->is_active) {
+                                                $label .= ' (Non-Aktif)';
+                                            }
+                                            $grouped[$brandName][$p->id] = $label;
+                                        }
+
+                                        return $grouped;
                                     })
                                     ->required()
                                     ->reactive()

@@ -137,4 +137,15 @@ class DeliveryOrderCustomerAndReferenceTest extends TestCase
                 'warehouse_id' => $this->warehouse->id,
             ]);
     }
+
+    public function test_delivery_order_item_select_has_grouped_brands_and_stock_info(): void
+    {
+        $response = $this->get(DeliveryOrderResource::getUrl('create'));
+        $response->assertSuccessful();
+
+        // Verifikasi bahwa brand dan info part & stok ada di HTML halaman create
+        $response->assertSee('FLEETGUARD');
+        $response->assertSee('FS1242');
+        $response->assertSee('Stok: 50 PCS');
+    }
 }
