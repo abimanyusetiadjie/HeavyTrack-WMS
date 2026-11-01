@@ -18,12 +18,12 @@ class ListInvoices extends ListRecords
         return [
             'all' => Tab::make('Semua Faktur'),
             'unpaid' => Tab::make('Belum Lunas')
-                ->modifyQueryUsing(fn (Builder $query) => $query->whereIn('payment_status', ['UNPAID', 'PARTIAL']))
-                ->badge(fn () => Invoice::whereIn('payment_status', ['UNPAID', 'PARTIAL'])->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereIn('status', ['UNPAID', 'PARTIALLY_PAID']))
+                ->badge(fn () => Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->count())
                 ->badgeColor('warning'),
             'paid' => Tab::make('Lunas')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('payment_status', 'PAID'))
-                ->badge(fn () => Invoice::where('payment_status', 'PAID')->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'PAID'))
+                ->badge(fn () => Invoice::where('status', 'PAID')->count())
                 ->badgeColor('success'),
             'void' => Tab::make('Batal')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'VOID'))

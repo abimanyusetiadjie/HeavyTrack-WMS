@@ -38,9 +38,36 @@ class InvoiceTest extends TestCase
     public function test_can_render_invoices_list_page(): void
     {
         $user = User::factory()->create(['email' => 'admin_test3@heavytrack.com']);
+        $user->syncRoles([\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner'])]);
+
+        $contact = Contact::create([
+            'company_name' => 'PT Customer Test',
+            'type' => 'CUSTOMER',
+        ]);
+
+        \App\Models\Invoice::create([
+            'invoice_number' => 'INV/TEST/001',
+            'contact_id' => $contact->id,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+            'status' => 'UNPAID',
+            'grand_total' => 1000000,
+            'created_by' => $user->id,
+        ]);
+
+        $page = new \App\Filament\Resources\InvoiceResource\Pages\ListInvoices();
+        $tabs = $page->getTabs();
+        $this->assertArrayHasKey('all', $tabs);
+        $this->assertArrayHasKey('unpaid', $tabs);
+        $this->assertArrayHasKey('paid', $tabs);
+        $this->assertArrayHasKey('void', $tabs);
 
         $response = $this->actingAs($user)->get('/admin/invoices');
         $response->assertSuccessful();
+        $response->assertSee('Semua Faktur');
+        $response->assertSee('Belum Lunas');
+        $response->assertSee('Lunas');
+        $response->assertSee('Batal');
     }
 
     public function test_invoice_and_payment_fields_are_automatically_capslock(): void
