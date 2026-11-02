@@ -13,7 +13,7 @@ class StatsOverview extends BaseWidget
 {
     protected static ?int $sort = 1;
 
-    protected ?string $pollingInterval = null;
+    protected ?string $pollingInterval = '15s';
 
     protected function getStats(): array
     {

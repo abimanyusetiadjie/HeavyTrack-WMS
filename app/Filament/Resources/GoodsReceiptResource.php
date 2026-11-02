@@ -257,6 +257,7 @@ class GoodsReceiptResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('20s')
             ->columns([
                 Tables\Columns\TextColumn::make('receipt_number')
                     ->label('No. Dokumen LPB')

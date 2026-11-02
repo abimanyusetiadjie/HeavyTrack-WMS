@@ -462,6 +462,7 @@ class InvoiceResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('30s')
             ->columns([
                 Tables\Columns\TextColumn::make('invoice_number')->label('Nomor Faktur')->searchable(),
                 Tables\Columns\TextColumn::make('invoice_date')->label('Tgl Terbit')->date('d M Y')->sortable(),

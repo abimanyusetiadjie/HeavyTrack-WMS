@@ -47,9 +47,42 @@ class EditProduct extends EditRecord
                     );
 
                     if ($totalOtherStock > 0) {
-                        $part->stockBalances()->where('warehouse_id', '!=', $targetWarehouse->id)->update(['qty_on_hand' => 0]);
+                        $targetBefore = $targetBalance->qty_on_hand;
+                        $targetAfter = $targetBefore + $totalOtherStock;
+
+                        foreach ($otherBalances as $ob) {
+                            if ($ob->qty_on_hand > 0) {
+                                \App\Models\StockLedger::create([
+                                    'warehouse_id' => $ob->warehouse_id,
+                                    'part_id' => $part->id,
+                                    'reference_type' => 'MANUAL_ADJUSTMENT',
+                                    'reference_id' => $part->id,
+                                    'reference_number' => 'TRF/' . date('Ymd') . '/' . $part->id,
+                                    'qty_change' => -$ob->qty_on_hand,
+                                    'balance_before' => $ob->qty_on_hand,
+                                    'balance_after' => 0,
+                                    'notes' => 'Pemindahan fisik barang ke ' . $targetWarehouse->name,
+                                    'created_by' => auth()->id() ?? 1,
+                                ]);
+                                $ob->update(['qty_on_hand' => 0]);
+                            }
+                        }
+
                         $targetBalance->update([
-                            'qty_on_hand' => $targetBalance->qty_on_hand + $totalOtherStock,
+                            'qty_on_hand' => $targetAfter,
+                        ]);
+
+                        \App\Models\StockLedger::create([
+                            'warehouse_id' => $targetWarehouse->id,
+                            'part_id' => $part->id,
+                            'reference_type' => 'MANUAL_ADJUSTMENT',
+                            'reference_id' => $part->id,
+                            'reference_number' => 'TRF/' . date('Ymd') . '/' . $part->id,
+                            'qty_change' => $totalOtherStock,
+                            'balance_before' => $targetBefore,
+                            'balance_after' => $targetAfter,
+                            'notes' => 'Penerimaan fisik barang dari pemindahan lokasi gudang',
+                            'created_by' => auth()->id() ?? 1,
                         ]);
                     }
                 });

@@ -46,6 +46,7 @@ class StockLedgerResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('15s')
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Waktu Mutasi')
