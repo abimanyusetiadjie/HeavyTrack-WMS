@@ -102,6 +102,7 @@ class WarehouseResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('20s')
             ->columns([
                 Tables\Columns\TextColumn::make('code')
                     ->label('Kode Gudang')
@@ -121,10 +122,23 @@ class WarehouseResource extends Resource
                     ->limit(60)
                     ->placeholder('-'),
 
-                Tables\Columns\TextColumn::make('stock_balances_count')
+                Tables\Columns\TextColumn::make('active_stock_balances_count')
                     ->label('Jumlah Jenis Part')
-                    ->counts('stockBalances')
-                    ->badge(),
+                    ->counts('activeStockBalances')
+                    ->badge()
+                    ->color(fn (int $state): string => $state > 0 ? 'success' : 'gray'),
+
+                Tables\Columns\TextColumn::make('total_physical_stock')
+                    ->label('Total Stok Fisik')
+                    ->state(function (Warehouse $record): string {
+                        $total = (int) $record->stockBalances()->sum('qty_on_hand');
+                        return number_format($total, 0, ',', '.') . ' PCS';
+                    })
+                    ->badge()
+                    ->color(function (Warehouse $record): string {
+                        $total = (int) $record->stockBalances()->sum('qty_on_hand');
+                        return $total > 0 ? 'info' : 'gray';
+                    }),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Status Aktif')
