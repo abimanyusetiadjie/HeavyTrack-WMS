@@ -146,7 +146,42 @@ class ProductWarehouseColumnTest extends TestCase
         // 2. Verifikasi data tersimpan sebagai Gudang Anekarasa
         $this->assertEquals('Gudang Anekarasa', $part->fresh()->bin_location);
 
-        // 3. Verifikasi form Create Produk juga memiliki field Lokasi Gudang
+        // 3. Verifikasi perpindahan kembali ke Mitra Abadi (Bolak-balik Mitra Abadi <-> Anekarasa)
+        StockBalance::updateOrCreate(
+            ['part_id' => $part->id, 'warehouse_id' => $gar->id],
+            ['qty_on_hand' => 50]
+        );
+        StockBalance::updateOrCreate(
+            ['part_id' => $part->id, 'warehouse_id' => $gma->id],
+            ['qty_on_hand' => 0]
+        );
+
+        Livewire::test(\App\Filament\Resources\ProductResource\Pages\EditProduct::class, ['record' => $part->id])
+            ->assertSuccessful()
+            ->fillForm([
+                'bin_location' => 'Gudang Mitra Abadi',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertEquals('Gudang Mitra Abadi', $part->fresh()->bin_location);
+        $this->assertEquals(50, StockBalance::where('part_id', $part->id)->where('warehouse_id', $gma->id)->value('qty_on_hand'));
+        $this->assertEquals(0, StockBalance::where('part_id', $part->id)->where('warehouse_id', $gar->id)->value('qty_on_hand'));
+
+        // Pindah lagi ke Anekarasa
+        Livewire::test(\App\Filament\Resources\ProductResource\Pages\EditProduct::class, ['record' => $part->id])
+            ->assertSuccessful()
+            ->fillForm([
+                'bin_location' => 'Gudang Anekarasa',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertEquals('Gudang Anekarasa', $part->fresh()->bin_location);
+        $this->assertEquals(0, StockBalance::where('part_id', $part->id)->where('warehouse_id', $gma->id)->value('qty_on_hand'));
+        $this->assertEquals(50, StockBalance::where('part_id', $part->id)->where('warehouse_id', $gar->id)->value('qty_on_hand'));
+
+        // 4. Verifikasi form Create Produk juga memiliki field Lokasi Gudang
         Livewire::test(\App\Filament\Resources\ProductResource\Pages\CreateProduct::class)
             ->assertSuccessful()
             ->assertFormFieldExists('bin_location', function (\Filament\Forms\Components\Select $field) {
