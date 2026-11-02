@@ -214,12 +214,55 @@ class ProductResource extends Resource
                     ->color(fn ($state, Part $record) => ($state === null || (float) $state <= ($record->min_stock_level ?? 5)) ? 'danger' : 'success')
                     ->formatStateUsing(fn ($state, Part $record) => number_format((float) ($state ?? 0), 0, ',', '.') . ' ' . ($record->unit ?? 'PCS')),
                     
-                Tables\Columns\IconColumn::make('is_active')
-                    ->label('Aktif')
-                    ->boolean(),
+                Tables\Columns\TextColumn::make('warehouse_locations')
+                    ->label('Gudang')
+                    ->badge()
+                    ->state(function (Part $record) {
+                        $balances = $record->stockBalances->filter(fn ($sb) => (int) ($sb->qty_on_hand ?? 0) > 0);
+                        
+                        if ($balances->count() > 1) {
+                            return $balances->map(function ($sb) use ($record) {
+                                $whName = $sb->warehouse?->name ?? '';
+                                $label = str_contains(strtoupper($whName), 'ANEKARASA') ? 'Gudang Anekarasa' : 'Gudang Mitra Abadi';
+                                return "{$label} ({$sb->qty_on_hand} " . ($record->unit ?? 'PCS') . ")";
+                            })->values()->toArray();
+                        }
+
+                        if ($balances->count() === 1) {
+                            $whName = $balances->first()->warehouse?->name ?? '';
+                            return [str_contains(strtoupper($whName), 'ANEKARASA') ? 'Gudang Anekarasa' : 'Gudang Mitra Abadi'];
+                        }
+
+                        $anyBalance = $record->stockBalances->first();
+                        if ($anyBalance && $anyBalance->warehouse) {
+                            $whName = $anyBalance->warehouse->name;
+                            return [str_contains(strtoupper($whName), 'ANEKARASA') ? 'Gudang Anekarasa' : 'Gudang Mitra Abadi'];
+                        }
+
+                        return ['Gudang Mitra Abadi'];
+                    })
+                    ->color(fn (string $state): string => match (true) {
+                        str_contains($state, 'Mitra Abadi') => 'info',
+                        str_contains($state, 'Anekarasa') => 'warning',
+                        default => 'gray',
+                    }),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
+                Tables\Filters\SelectFilter::make('warehouse')
+                    ->label('Filter Gudang')
+                    ->options([
+                        'GMA' => 'Gudang Mitra Abadi',
+                        'GAR' => 'Gudang Anekarasa',
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        if (! empty($data['value'])) {
+                            $code = $data['value'];
+                            $query->whereHas('stockBalances', function ($q) use ($code) {
+                                $q->whereHas('warehouse', fn ($wh) => $wh->where('code', $code));
+                            });
+                        }
+                    }),
                 Tables\Filters\SelectFilter::make('brand_id')->relationship('brand', 'name', fn (Builder $query) => $query->orderBy('name'))->label('Filter Merk')->preload(),
                 Tables\Filters\SelectFilter::make('category_id')->relationship('category', 'name', fn (Builder $query) => $query->orderBy('name'))->label('Filter Kategori')->preload(),
                 Tables\Filters\Filter::make('low_stock')
@@ -315,7 +358,11 @@ class ProductResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['brand:id,name', 'category:id,name'])
+            ->with([
+                'brand:id,name',
+                'category:id,name',
+                'stockBalances.warehouse:id,name,code',
+            ])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ])
