@@ -27,4 +27,22 @@ class CreateProduct extends CreateRecord
 
         return $data;
     }
+
+    protected function afterCreate(): void
+    {
+        $part = $this->record;
+        $loc = $part->bin_location;
+        if (! empty($loc)) {
+            $isAnekarasa = str_contains(strtoupper($loc), 'ANEKARASA');
+            $targetWarehouse = \App\Models\Warehouse::where('code', $isAnekarasa ? 'GAR' : 'GMA')->first()
+                ?? \App\Models\Warehouse::where('name', 'like', $isAnekarasa ? '%ANEKARASA%' : '%MITRA ABADI%')->first();
+
+            if ($targetWarehouse) {
+                \App\Models\StockBalance::firstOrCreate(
+                    ['part_id' => $part->id, 'warehouse_id' => $targetWarehouse->id],
+                    ['qty_on_hand' => 0, 'qty_reserved' => 0]
+                );
+            }
+        }
+    }
 }

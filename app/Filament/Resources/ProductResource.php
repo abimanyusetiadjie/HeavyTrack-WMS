@@ -120,9 +120,28 @@ class ProductResource extends Resource
                     ->description('Pengaturan lokasi penyimpanan dan batas stok minimum.')
                     ->columnSpanFull()
                     ->schema([
-                        Forms\Components\TextInput::make('bin_location')
-                            ->label('Nomor Rak/Lokasi Gudang')
-                            ->maxLength(50),
+                        Forms\Components\Select::make('bin_location')
+                            ->label('Lokasi Gudang')
+                            ->placeholder('Pilih Lokasi Gudang')
+                            ->options(fn () => \App\Models\Warehouse::where('is_active', true)->orderBy('id')->get()->mapWithKeys(function ($wh) {
+                                $label = str_contains(strtoupper($wh->name), 'ANEKARASA') ? 'Gudang Anekarasa' : 'Gudang Mitra Abadi';
+                                return [$label => $label];
+                            })->toArray())
+                            ->formatStateUsing(function ($state, ?Part $record) {
+                                if (! empty($state)) {
+                                    return str_contains(strtoupper($state), 'ANEKARASA') ? 'Gudang Anekarasa' : 'Gudang Mitra Abadi';
+                                }
+                                if ($record && $record->stockBalances()->where('qty_on_hand', '>', 0)->exists()) {
+                                    $first = $record->stockBalances()->where('qty_on_hand', '>', 0)->with('warehouse')->first();
+                                    if ($first && $first->warehouse) {
+                                        return str_contains(strtoupper($first->warehouse->name), 'ANEKARASA') ? 'Gudang Anekarasa' : 'Gudang Mitra Abadi';
+                                    }
+                                }
+                                return 'Gudang Mitra Abadi';
+                            })
+                            ->default('Gudang Mitra Abadi')
+                            ->searchable()
+                            ->preload(),
                             
                         Forms\Components\TextInput::make('unit')
                             ->label('Satuan (UoM)')

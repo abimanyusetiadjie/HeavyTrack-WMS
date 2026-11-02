@@ -107,4 +107,50 @@ class ProductWarehouseColumnTest extends TestCase
             ->assertCanSeeTableRecords([$partGma, $partBoth])
             ->assertCanNotSeeTableRecords([$partGar]);
     }
+
+    public function test_edit_and_create_product_form_has_lokasi_gudang_dropdown(): void
+    {
+        $owner = User::where('email', 'owner@heavytrack.com')->first() ?: User::factory()->create([
+            'email' => 'owner_form_wh@heavytrack.com',
+            'name' => 'Owner Form Wh',
+        ]);
+
+        $gma = Warehouse::firstOrCreate(['code' => 'GMA'], ['name' => 'GUDANG MITRA ABADI']);
+        $gar = Warehouse::firstOrCreate(['code' => 'GAR'], ['name' => 'GUDANG ANEKARASA']);
+
+        $brand = Brand::firstOrCreate(['name' => 'Hitachi'], ['code' => 'HIT']);
+        $cat = Category::firstOrCreate(['name' => 'Filter'], ['code' => 'FLT']);
+
+        $part = Part::create([
+            'part_number' => 'HIT-999',
+            'name' => 'Fuel Filter Element',
+            'brand_id' => $brand->id,
+            'category_id' => $cat->id,
+            'bin_location' => 'Gudang Mitra Abadi',
+        ]);
+
+        $this->actingAs($owner);
+
+        // 1. Verifikasi form Edit Produk memiliki komponen Select dengan label 'Lokasi Gudang'
+        Livewire::test(\App\Filament\Resources\ProductResource\Pages\EditProduct::class, ['record' => $part->id])
+            ->assertSuccessful()
+            ->assertFormFieldExists('bin_location', function (\Filament\Forms\Components\Select $field) {
+                return $field->getLabel() === 'Lokasi Gudang';
+            })
+            ->fillForm([
+                'bin_location' => 'Gudang Anekarasa',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        // 2. Verifikasi data tersimpan sebagai Gudang Anekarasa
+        $this->assertEquals('Gudang Anekarasa', $part->fresh()->bin_location);
+
+        // 3. Verifikasi form Create Produk juga memiliki field Lokasi Gudang
+        Livewire::test(\App\Filament\Resources\ProductResource\Pages\CreateProduct::class)
+            ->assertSuccessful()
+            ->assertFormFieldExists('bin_location', function (\Filament\Forms\Components\Select $field) {
+                return $field->getLabel() === 'Lokasi Gudang';
+            });
+    }
 }

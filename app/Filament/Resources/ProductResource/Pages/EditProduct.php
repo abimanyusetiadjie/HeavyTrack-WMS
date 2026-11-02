@@ -27,6 +27,40 @@ class EditProduct extends EditRecord
         return $data;
     }
 
+    protected function afterSave(): void
+    {
+        $part = $this->record;
+        $loc = $part->bin_location;
+        if (! empty($loc)) {
+            $isAnekarasa = str_contains(strtoupper($loc), 'ANEKARASA');
+            $targetWarehouse = \App\Models\Warehouse::where('code', $isAnekarasa ? 'GAR' : 'GMA')->first()
+                ?? \App\Models\Warehouse::where('name', 'like', $isAnekarasa ? '%ANEKARASA%' : '%MITRA ABADI%')->first();
+
+            if ($targetWarehouse) {
+                $otherBalances = $part->stockBalances()->where('warehouse_id', '!=', $targetWarehouse->id)->get();
+                $totalOtherStock = $otherBalances->sum('qty_on_hand');
+
+                if ($totalOtherStock > 0 && $part->stockBalances()->where('warehouse_id', $targetWarehouse->id)->count() === 0) {
+                    \Illuminate\Support\Facades\DB::transaction(function () use ($part, $targetWarehouse, $otherBalances, $totalOtherStock) {
+                        foreach ($otherBalances as $ob) {
+                            $ob->update(['qty_on_hand' => 0]);
+                        }
+                        $targetBalance = \App\Models\StockBalance::firstOrCreate(
+                            ['part_id' => $part->id, 'warehouse_id' => $targetWarehouse->id],
+                            ['qty_on_hand' => 0, 'qty_reserved' => 0]
+                        );
+                        $targetBalance->update(['qty_on_hand' => $totalOtherStock]);
+                    });
+                } elseif ($part->stockBalances()->count() === 0) {
+                    \App\Models\StockBalance::firstOrCreate(
+                        ['part_id' => $part->id, 'warehouse_id' => $targetWarehouse->id],
+                        ['qty_on_hand' => 0, 'qty_reserved' => 0]
+                    );
+                }
+            }
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [
