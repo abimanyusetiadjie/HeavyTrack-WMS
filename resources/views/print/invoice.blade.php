@@ -19,8 +19,9 @@
         .summary-table td { padding: 4px 6px; font-size: 11px; text-transform: uppercase; }
         .payment-info { width: 50%; float: left; margin-top: 5px; font-size: 10px; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; text-transform: uppercase; }
         .clearfix::after { content: ""; clear: both; display: table; }
-        .footer-table { margin-top: 30px; text-align: center; text-transform: uppercase; }
-        .footer-table td { width: 50%; padding-top: 50px; font-size: 11px; text-transform: uppercase; }
+        .footer-table { margin-top: 30px; text-align: center; text-transform: uppercase; page-break-inside: avoid; }
+        .footer-table td { width: 50%; font-size: 11px; text-transform: uppercase; vertical-align: top; padding: 0 10px; }
+        .sig-space { height: 48px; text-align: center; line-height: 48px; margin: 4px 0; }
     </style>
 </head>
 <body>
@@ -28,6 +29,9 @@
         $logoPath = public_path('images/logo.png');
         $hasGd = extension_loaded('gd') && function_exists('imagecreatefrompng');
         $logoBase64 = ($hasGd && file_exists($logoPath)) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+
+        $sigPath = public_path('images/signature.png');
+        $sigBase64 = file_exists($sigPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($sigPath)) : null;
     @endphp
     <div class="header-box">
         <table>
@@ -158,12 +162,18 @@
     <table class="footer-table">
         <tr>
             <td>
-                PENERIMA TAGIHAN,<br><br><br><br><br>
+                PENERIMA TAGIHAN,
+                <div class="sig-space"></div>
                 (___________________)
             </td>
             <td>
-                HORMAT KAMI,<br><br><br><br><br>
-                (___________________)
+                HORMAT KAMI,
+                <div class="sig-space">
+                    @if($sigBase64)
+                    <img src="{{ $sigBase64 }}" style="height: 44px; width: auto; vertical-align: middle; display: inline-block;" alt="Tanda Tangan" />
+                    @endif
+                </div>
+                ( REVALDO JULIAN )
             </td>
         </tr>
     </table>

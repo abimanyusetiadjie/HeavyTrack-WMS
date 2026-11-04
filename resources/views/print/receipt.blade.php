@@ -25,6 +25,8 @@
         $logoPath = public_path('images/logo.png');
         $hasGd = extension_loaded('gd') && function_exists('imagecreatefrompng');
         $logoBase64 = ($hasGd && file_exists($logoPath)) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+        $sigPath = public_path('images/signature.png');
+        $sigBase64 = file_exists($sigPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($sigPath)) : null;
         $latestPayment = $invoice->payments->last();
         $totalPaid = (float) $invoice->payments->sum('amount');
         $receiptNumber = $latestPayment?->receipt_number ?? ('BKM/' . date('Ym') . '/' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT));
@@ -103,8 +105,12 @@
         <div class="signatures">
             JAKARTA, {{ strtoupper($paymentDate->translatedFormat('d F Y')) }}<br>
             <strong>MITRA ABADI NUSANTARA</strong>
-            <br><br><br><br><br>
-            ( _________________________ )<br>
+            <div style="height: 45px; text-align: center; line-height: 45px; margin: 3px 0;">
+                @if($sigBase64)
+                <img src="{{ $sigBase64 }}" style="height: 42px; width: auto; vertical-align: middle; display: inline-block;" alt="Tanda Tangan" />
+                @endif
+            </div>
+            ( REVALDO JULIAN )<br>
             <span style="font-size: 9px; color: #64748b;">KASIR / BAGIAN KEUANGAN</span>
         </div>
     </div>
