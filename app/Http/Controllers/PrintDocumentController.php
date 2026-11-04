@@ -17,13 +17,8 @@ class PrintDocumentController extends Controller
 
         $deliveryOrder->load(['items.part.brand', 'contact', 'warehouse', 'creator']);
 
-        $format = request()->query('format', 'auto');
-        $itemCount = $deliveryOrder->items->count();
-        $isCompact = ($format === 'compact') || ($format === 'auto' && $itemCount <= 12);
-        
         $pdf = Pdf::loadView('print.delivery-order', [
             'do' => $deliveryOrder,
-            'isCompact' => $isCompact,
         ])->setPaper('a4', 'portrait');
             
         return $pdf->stream('Surat_Jalan_' . str_replace('/', '_', $deliveryOrder->do_number) . '.pdf');

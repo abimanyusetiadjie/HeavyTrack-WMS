@@ -160,8 +160,8 @@ class SystemPerformanceFATTest extends TestCase
             ['GET', '/admin/goods-receipts/create', 'Form Restock Masuk (LPB)', true],
             ['GET', '/admin/warehouses', 'Daftar Gudang (2 Locked)', true],
             ['GET', '/admin/contacts', 'Daftar Kontak (Customer & Supplier)', true],
-            ['GET', '/print/delivery-order/' . $doCompact->id, 'Cetak SJ 2-in-1 Compact (<=12 item)', true],
-            ['GET', '/print/delivery-order/' . $doFull->id, 'Cetak SJ Full 2 Lembar (>12 item)', true],
+            ['GET', '/print/delivery-order/' . $doCompact->id, 'Cetak SJ (Halaman Penuh A4)', true],
+            ['GET', '/print/delivery-order/' . $doFull->id, 'Cetak SJ Banyak Item (A4)', true],
             ['GET', '/print/invoice/' . $invoice->id, 'Cetak Faktur Penjualan (A4 Portrait)', true],
             ['GET', '/print/receipt/' . $invoice->id, 'Cetak Kwitansi Pembayaran (A5 Landscape)', true],
         ];

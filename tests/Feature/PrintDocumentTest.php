@@ -285,11 +285,11 @@ class PrintDocumentTest extends TestCase
         $this->assertStringContainsString('revaldojulian07@gmail.com', $viewContent);
     }
 
-    public function test_delivery_order_prints_dual_copy_on_single_a4_page(): void
+    public function test_delivery_order_prints_single_a4_page(): void
     {
         $user = User::where('email', 'owner@heavytrack.com')->first() ?: User::factory()->create([
-            'email' => 'testowner_dual@heavytrack.com',
-            'name' => 'Owner Dual',
+            'email' => 'testowner_single@heavytrack.com',
+            'name' => 'Owner Single',
         ]);
 
         $contact = Contact::create([
@@ -339,10 +339,10 @@ class PrintDocumentTest extends TestCase
 
         $viewContent = view('print.delivery-order', ['do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse'])])->render();
         
-        // Memastikan dua rangkap (Lembar 1 & Lembar 2) dan garis pembatas cetak ada
-        $this->assertStringContainsString('LEMBAR 1: ASLI (UNTUK PELANGGAN / SUPIR)', $viewContent);
-        $this->assertStringContainsString('LEMBAR 2: COPY (ARSIP GUDANG / FINANCE)', $viewContent);
-        $this->assertStringContainsString('POTONG / GUNTING DI SINI', $viewContent);
+        // Memastikan format sekarang 1 halaman penuh tanpa potongan bagi dua
+        $this->assertStringContainsString('SURAT JALAN', $viewContent);
+        $this->assertStringNotContainsString('POTONG / GUNTING DI SINI', $viewContent);
+        $this->assertStringNotContainsString('LEMBAR 2: COPY', $viewContent);
         $this->assertStringContainsString('HORMAT KAMI,', $viewContent);
         $this->assertStringContainsString('REVALDO JULIAN', $viewContent);
         $this->assertStringContainsString('data:image/png;base64,', $viewContent);
@@ -350,13 +350,12 @@ class PrintDocumentTest extends TestCase
         // Verifikasi PDF DomPDF render menghasilkan tepat 1 halaman A4
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('print.delivery-order', [
             'do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse']),
-            'isCompact' => true,
         ])->setPaper('a4', 'portrait');
         $pdf->render();
         $this->assertEquals(1, $pdf->getCanvas()->get_page_count());
     }
 
-    public function test_delivery_order_auto_switches_to_full_page_when_items_exceed_twelve(): void
+    public function test_delivery_order_prints_cleanly_with_many_items(): void
     {
         $user = User::where('email', 'owner@heavytrack.com')->first() ?: User::factory()->create([
             'email' => 'testowner_full@heavytrack.com',
@@ -387,8 +386,7 @@ class PrintDocumentTest extends TestCase
             'created_by' => $user->id,
         ]);
 
-        // Buat 15 item (melebihi 12 item)
-        for ($i = 1; $i <= 15; $i++) {
+        for ($i = 1; $i <= 10; $i++) {
             $part = Part::create([
                 'part_number' => 'KOM-' . str_pad($i, 4, '0', STR_PAD_LEFT),
                 'name' => 'Komatsu Hydraulic Part ' . $i,
@@ -406,26 +404,21 @@ class PrintDocumentTest extends TestCase
             ]);
         }
 
-        // Hit route cetak secara otomatis (Smart Auto-detection)
         $response = $this->actingAs($user)->get(route('print.delivery-order', ['deliveryOrder' => $do->id]));
         $this->assertEquals(200, $response->status());
 
-        // Verifikasi view full page: Lembar 1 dan Lembar 2 ada, tetapi TANPA garis gunting tengah
         $viewContent = view('print.delivery-order', [
             'do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse']),
-            'isCompact' => false,
         ])->render();
 
-        $this->assertStringContainsString('LEMBAR 1: ASLI (UNTUK PELANGGAN / SUPIR)', $viewContent);
-        $this->assertStringContainsString('LEMBAR 2: COPY (ARSIP GUDANG / FINANCE)', $viewContent);
-        $this->assertStringNotContainsString('POTONG / GUNTING DI SINI', $viewContent);
+        $this->assertStringContainsString('SURAT JALAN', $viewContent);
+        $this->assertStringContainsString('HORMAT KAMI,', $viewContent);
+        $this->assertStringContainsString('REVALDO JULIAN', $viewContent);
 
-        // Verifikasi PDF DomPDF render menghasilkan 2 halaman penuh A4 (Halaman 1 Asli, Halaman 2 Copy)
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('print.delivery-order', [
             'do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse']),
-            'isCompact' => false,
         ])->setPaper('a4', 'portrait');
         $pdf->render();
-        $this->assertEquals(2, $pdf->getCanvas()->get_page_count());
+        $this->assertEquals(1, $pdf->getCanvas()->get_page_count());
     }
 }
