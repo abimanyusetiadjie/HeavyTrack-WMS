@@ -277,6 +277,9 @@
         $hasGd = extension_loaded('gd') && function_exists('imagecreatefrompng');
         $logoBase64 = ($hasGd && file_exists($logoPath)) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
 
+        $sigPath = public_path('images/signature.png');
+        $sigBase64 = file_exists($sigPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($sigPath)) : null;
+
         $copies = [
             [
                 'badge' => 'LEMBAR 1: ASLI (UNTUK PELANGGAN / SUPIR)',
@@ -408,8 +411,12 @@
                 </td>
                 <td>
                     HORMAT KAMI,
-                    <div class="sig-space"></div>
-                    (___________________)
+                    <div class="sig-space">
+                        @if($sigBase64)
+                        <img src="{{ $sigBase64 }}" style="height: {{ ($isCompact ?? true) ? '22px' : '42px' }}; width: auto; vertical-align: middle; display: inline-block;" alt="Tanda Tangan" />
+                        @endif
+                    </div>
+                    ( REVALDO JULIAN )
                 </td>
             </tr>
         </table>

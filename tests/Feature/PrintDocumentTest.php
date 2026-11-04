@@ -343,6 +343,9 @@ class PrintDocumentTest extends TestCase
         $this->assertStringContainsString('LEMBAR 1: ASLI (UNTUK PELANGGAN / SUPIR)', $viewContent);
         $this->assertStringContainsString('LEMBAR 2: COPY (ARSIP GUDANG / FINANCE)', $viewContent);
         $this->assertStringContainsString('POTONG / GUNTING DI SINI', $viewContent);
+        $this->assertStringContainsString('HORMAT KAMI,', $viewContent);
+        $this->assertStringContainsString('REVALDO JULIAN', $viewContent);
+        $this->assertStringContainsString('data:image/png;base64,', $viewContent);
 
         // Verifikasi PDF DomPDF render menghasilkan tepat 1 halaman A4
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('print.delivery-order', [
