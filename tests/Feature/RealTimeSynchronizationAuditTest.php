@@ -34,6 +34,12 @@ class RealTimeSynchronizationAuditTest extends TestCase
         $prop->setAccessible(true);
         $this->assertEquals('15s', $prop->getValue($widget));
 
+        $chartWidget = new \App\Filament\Widgets\MonthlyProfitChart();
+        $refChart = new \ReflectionClass($chartWidget);
+        $propChart = $refChart->getProperty('pollingInterval');
+        $propChart->setAccessible(true);
+        $this->assertEquals('15s', $propChart->getValue($chartWidget));
+
         // 2. Table Real-Time Polling
         $tableProduct = ProductResource::table(new Table(new \App\Filament\Resources\ProductResource\Pages\ListProducts()));
         $this->assertEquals('30s', $tableProduct->getPollingInterval());
