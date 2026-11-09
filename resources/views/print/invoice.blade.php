@@ -77,7 +77,15 @@
         </tr>
         <tr>
             <td><strong>DITAGIHKAN KE</strong></td>
-            <td colspan="3">: <strong>{{ strtoupper($invoice->contact?->company_name ?? '-') }}</strong> ({{ $invoice->contact?->phone ?? '-' }})</td>
+            <td colspan="3">
+                : <strong>{{ strtoupper($invoice->contact?->company_name ?? '-') }}</strong>
+                @if(!empty($invoice->contact?->pic_name))
+                (U.P. / PIC: <strong>{{ strtoupper($invoice->contact->pic_name) }}</strong>)
+                @endif
+                @if(!empty($invoice->contact?->phone))
+                ({{ $invoice->contact->phone }})
+                @endif
+            </td>
         </tr>
         <tr>
             <td><strong>ALAMAT PENAGIHAN</strong></td>
@@ -164,7 +172,7 @@
             <td>
                 PENERIMA TAGIHAN,
                 <div class="sig-space"></div>
-                (___________________)
+                ( {{ strtoupper($invoice->contact?->pic_name ?: '___________________') }} )
             </td>
             <td>
                 HORMAT KAMI,

@@ -426,4 +426,52 @@ class PrintDocumentTest extends TestCase
         $pdf->render();
         $this->assertEquals(1, $pdf->getCanvas()->get_page_count());
     }
+
+    public function test_delivery_order_prints_pic_name_under_recipient_and_signature(): void
+    {
+        $user = User::where('email', 'owner@heavytrack.com')->first() ?: User::factory()->create([
+            'email' => 'testowner_pic@heavytrack.com',
+            'name' => 'Owner PIC Test',
+        ]);
+
+        $contact = Contact::create([
+            'company_name' => 'MITRA SARANA TEKNIK',
+            'pic_name' => 'FERY',
+            'phone' => '081315155199',
+            'address' => 'PASAR ASAN REGES LANTAI 3',
+            'type' => 'CUSTOMER',
+        ]);
+
+        $warehouse = Warehouse::firstOrCreate(['code' => 'GMA'], [
+            'name' => 'Gudang Mitra Abadi',
+        ]);
+
+        $do = DeliveryOrder::create([
+            'do_number' => 'SJ/202611/0099',
+            'delivery_date' => now(),
+            'contact_id' => $contact->id,
+            'warehouse_id' => $warehouse->id,
+            'status' => 'CONFIRMED',
+            'driver_name' => 'Budi Santoso',
+            'vehicle_plate_number' => 'B 9988 XYZ',
+            'created_by' => $user->id,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('print.delivery-order', ['deliveryOrder' => $do->id]));
+        $this->assertEquals(200, $response->status());
+
+        $viewContent = view('print.delivery-order', [
+            'do' => $do->fresh()->load(['items.part.brand', 'contact', 'warehouse']),
+        ])->render();
+
+        // Verifikasi nama PIC FERY tampil pada header di bawah penerima
+        $this->assertStringContainsString('MITRA SARANA TEKNIK', $viewContent);
+        $this->assertStringContainsString('UP / PIC:', $viewContent);
+        $this->assertStringContainsString('FERY', $viewContent);
+
+        // Verifikasi nama PIC FERY tampil pada tanda tangan DITERIMA OLEH (Penerima)
+        $this->assertStringContainsString('( FERY )', $viewContent);
+        $this->assertStringContainsString('( BUDI SANTOSO )', $viewContent);
+        $this->assertStringContainsString('( REVALDO JULIAN )', $viewContent);
+    }
 }

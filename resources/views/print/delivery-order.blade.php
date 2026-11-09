@@ -165,7 +165,14 @@
         </tr>
         <tr>
             <td><strong>PENERIMA / KLIEN</strong></td>
-            <td>: <strong>{{ strtoupper($do->contact->company_name ?? '-') }}</strong></td>
+            <td>
+                : <strong>{{ strtoupper($do->contact->company_name ?? '-') }}</strong>
+                @if(!empty($do->contact->pic_name))
+                <div style="font-size: 8.5px; color: #1e293b; margin-top: 1px;">
+                    &nbsp;&nbsp;UP / PIC: <strong>{{ strtoupper($do->contact->pic_name) }}</strong>@if(!empty($do->contact->phone)) ({{ $do->contact->phone }})@endif
+                </div>
+                @endif
+            </td>
             <td><strong>PENGEMUDI (DRIVER)</strong></td>
             <td>: {{ strtoupper($do->driver_name ?? '-') }}</td>
         </tr>
@@ -227,7 +234,7 @@
             <td>
                 DITERIMA OLEH,
                 <div class="sig-space"></div>
-                (___________________)<br>
+                ( {{ strtoupper($do->contact?->pic_name ?: '___________________') }} )<br>
                 TGL:
             </td>
             <td>
