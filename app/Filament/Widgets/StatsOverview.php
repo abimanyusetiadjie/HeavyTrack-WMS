@@ -2,12 +2,14 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\ProductResource;
 use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\Part;
 use App\Models\StockBalance;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\DB;
 
 class StatsOverview extends BaseWidget
 {
@@ -21,17 +23,32 @@ class StatsOverview extends BaseWidget
 
         $totalStockUnits = StockBalance::whereHas('part', fn ($q) => $q->where('is_active', true))->sum('qty_on_hand');
 
+        $totalStockValue = (float) DB::table('stock_balances')
+            ->join('parts', 'parts.id', '=', 'stock_balances.part_id')
+            ->where('parts.is_active', true)
+            ->whereNull('parts.deleted_at')
+            ->where('stock_balances.qty_on_hand', '>', 0)
+            ->sum(DB::raw('COALESCE(stock_balances.qty_on_hand, 0) * COALESCE(parts.selling_price, 0)'));
+
         $lowStockCount = Part::where('is_active', true)
             ->whereRaw('(SELECT COALESCE(SUM(qty_on_hand), 0) FROM stock_balances WHERE stock_balances.part_id = parts.id) <= parts.min_stock_level')
             ->count();
 
         $confirmedDO = DeliveryOrder::whereIn('status', ['CONFIRMED', 'ISSUED'])->count();
 
+        $valueDisplay = $totalStockValue > 0 ? ProductResource::formatPriceDisplay($totalStockValue) : 'Rp 0';
+
         $stats = [
             Stat::make('Katalog Produk Aktif', number_format($activePartsCount, 0, ',', '.') . ' Varian')
                 ->description('Total fisik: ' . number_format($totalStockUnits, 0, ',', '.') . ' PCS')
                 ->descriptionIcon('heroicon-m-cube')
                 ->color('info')
+                ->url('/admin/products'),
+
+            Stat::make('Estimasi Nilai Barang', $valueDisplay)
+                ->description('Kalkulasi seluruh stok x harga jual')
+                ->descriptionIcon('heroicon-m-banknotes')
+                ->color('success')
                 ->url('/admin/products'),
 
             Stat::make('Peringatan Stok Menipis', $lowStockCount . ' Produk')
