@@ -257,7 +257,7 @@ class InvoiceResource extends Resource
                                             $stockQty = (int) $p->stockBalances->sum('qty_on_hand');
                                             $unit = $p->unit ?? 'PCS';
                                             $stockText = $stockQty > 0 ? "Stok: {$stockQty} {$unit}" : "Stok: 0 (KOSONG)";
-                                            $priceText = (float) $p->selling_price > 0 ? 'Rp ' . number_format((float) $p->selling_price, 0, ',', '.') : '-';
+                                            $priceText = (float) $p->selling_price > 0 ? \App\Filament\Resources\ProductResource::formatPriceDisplay($p->selling_price) : '-';
                                             $brandLabel = $p->brand?->name ? " [{$p->brand->name}]" : '';
                                             $label = "{$p->part_number} — {$p->name}{$brandLabel} [{$priceText}] [{$stockText}]";
                                             if (! $p->is_active) {

@@ -47,6 +47,32 @@ class ProductResource extends Resource
         return $user && ($user->isOwner() || $user->isAdmin());
     }
 
+    public static function formatPriceDisplay($state): string
+    {
+        if ($state === null || $state === '' || (float) $state <= 0) {
+            return '-';
+        }
+
+        $val = (float) $state;
+        // Jika bilangan bulat murni (contoh: 150000, 16)
+        if (floor($val) == $val) {
+            return 'Rp ' . number_format($val, 0, ',', '.');
+        }
+
+        // Jika memiliki nilai desimal (contoh: 8.5, 8.25, 2.3)
+        // Bersihkan trailing zero agar tampil nilai real bersih tanpa pembulatan
+        $str = rtrim(rtrim(sprintf('%.4f', $val), '0'), '.');
+        $parts = explode('.', $str);
+        $intPart = number_format((int) $parts[0], 0, ',', '.');
+        $decPart = $parts[1] ?? '';
+
+        if ($val < 1000) {
+            return 'Rp ' . $parts[0] . ($decPart !== '' ? '.' . $decPart : '');
+        }
+
+        return 'Rp ' . $intPart . ($decPart !== '' ? ',' . $decPart : '');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
@@ -165,7 +191,16 @@ class ProductResource extends Resource
                             ->prefix('Rp')
                             ->placeholder('0')
                             ->helperText('Bebas mengetik koma (,) atau titik (.) di mana pun.')
-                            ->formatStateUsing(fn ($state) => filled($state) && (float) $state > 0 ? (($f = (float) $state) == (int) $f ? (int) $f : $f) : null)
+                            ->formatStateUsing(function ($state) {
+                                if (! filled($state) || (float) $state <= 0) {
+                                    return null;
+                                }
+                                $f = (float) $state;
+                                if (floor($f) == $f) {
+                                    return (int) $f;
+                                }
+                                return rtrim(rtrim(sprintf('%.4f', $f), '0'), '.');
+                            })
                             ->dehydrateStateUsing(fn ($state) => \App\Models\Part::parsePrice($state))
                             ->nullable()
                             ->visible(fn (): bool => auth()->user()?->isOwner() ?? false)
@@ -176,7 +211,16 @@ class ProductResource extends Resource
                             ->prefix('Rp')
                             ->placeholder('0')
                             ->helperText('Bebas mengetik koma (,) atau titik (.) di mana pun.')
-                            ->formatStateUsing(fn ($state) => filled($state) && (float) $state > 0 ? (($f = (float) $state) == (int) $f ? (int) $f : $f) : null)
+                            ->formatStateUsing(function ($state) {
+                                if (! filled($state) || (float) $state <= 0) {
+                                    return null;
+                                }
+                                $f = (float) $state;
+                                if (floor($f) == $f) {
+                                    return (int) $f;
+                                }
+                                return rtrim(rtrim(sprintf('%.4f', $f), '0'), '.');
+                            })
                             ->dehydrateStateUsing(fn ($state) => \App\Models\Part::parsePrice($state))
                             ->nullable(),
                             
@@ -216,14 +260,14 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('cost_price')
                     ->label('HPP (Modal)')
                     ->sortable()
-                    ->formatStateUsing(fn ($state) => (float) ($state ?? 0) > 0 ? 'Rp ' . number_format((float) $state, 0, ',', '.') : '-')
+                    ->formatStateUsing(fn ($state) => static::formatPriceDisplay($state))
                     ->visible(fn (): bool => auth()->user()?->isOwner() ?? false),
 
                 Tables\Columns\TextColumn::make('selling_price')
                     ->label(fn (): string => (auth()->user()?->isOwner() ?? false) ? 'Harga Jual' : 'Harga')
                     ->sortable()
                     ->weight('semibold')
-                    ->formatStateUsing(fn ($state) => (float) ($state ?? 0) > 0 ? 'Rp ' . number_format((float) $state, 0, ',', '.') : '-'),
+                    ->formatStateUsing(fn ($state) => static::formatPriceDisplay($state)),
                     
                 Tables\Columns\TextColumn::make('stock_balances_sum_qty_on_hand')
                     ->label('Total Stok')

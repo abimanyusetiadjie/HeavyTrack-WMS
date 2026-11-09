@@ -206,7 +206,9 @@ class GoodsReceiptResource extends Resource
                                             if ($part) {
                                                 $set('unit', $part->unit ?? 'PCS');
                                                 $isOwner = auth()->user()?->isOwner() ?? false;
-                                                $set('unit_cost', $isOwner ? (int) round((float) ($part->cost_price ?? 0)) : 0);
+                                                $cost = (float) ($part->cost_price ?? 0);
+                                                $formattedCost = ($cost == (int) $cost) ? (int) $cost : rtrim(rtrim(sprintf('%.4f', $cost), '0'), '.');
+                                                $set('unit_cost', $isOwner ? $formattedCost : 0);
                                                 $set('bin_location_snapshot', $part->bin_location);
                                             }
                                         }
@@ -231,9 +233,19 @@ class GoodsReceiptResource extends Resource
                                 Forms\Components\TextInput::make('unit_cost')
                                     ->label('Harga Modal / Beli')
                                     ->prefix('Rp')
-                                    ->mask(\Filament\Support\RawJs::make('$money($input, \',\', \'.\', 0)'))
-                                    ->stripCharacters('.')
-                                    ->numeric()
+                                    ->placeholder('0')
+                                    ->helperText('Bebas mengetik koma (,) atau titik (.) di mana pun.')
+                                    ->formatStateUsing(function ($state) {
+                                        if (! filled($state) || (float) $state <= 0) {
+                                            return null;
+                                        }
+                                        $f = (float) $state;
+                                        if (floor($f) == $f) {
+                                            return (int) $f;
+                                        }
+                                        return rtrim(rtrim(sprintf('%.4f', $f), '0'), '.');
+                                    })
+                                    ->dehydrateStateUsing(fn ($state) => \App\Models\Part::parsePrice($state))
                                     ->default(0)
                                     ->visible(fn (): bool => auth()->user()?->isOwner() ?? false)
                                     ->dehydrated(fn (): bool => auth()->user()?->isOwner() ?? false)

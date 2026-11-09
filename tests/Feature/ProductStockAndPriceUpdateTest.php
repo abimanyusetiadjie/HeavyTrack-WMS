@@ -50,6 +50,11 @@ class ProductStockAndPriceUpdateTest extends TestCase
         $this->assertEquals('-', $sellingCol->formatState(0));
         $this->assertEquals('Rp 150.000', $sellingCol->formatState(150000));
         $this->assertEquals('Rp 100.000', $costCol->formatState(100000));
+        $this->assertEquals('Rp 8.5', $costCol->formatState(8.5));
+        $this->assertEquals('Rp 8.25', $costCol->formatState(8.25));
+        $this->assertEquals('Rp 2.3', $costCol->formatState(2.3));
+        $this->assertEquals('Rp 16', $costCol->formatState(16));
+        $this->assertEquals('Rp 150.000,5', $costCol->formatState(150000.5));
 
         // 2. Update harga dengan format rupiah
         $part->update([
@@ -110,5 +115,29 @@ class ProductStockAndPriceUpdateTest extends TestCase
 
         $this->assertEquals(2.30, $part->getRawOriginal('cost_price'));
         $this->assertEquals(150000.00, $part->getRawOriginal('selling_price'));
+
+        // Test EditProduct Livewire form saving decimal dot '8.5'
+        \Livewire\Livewire::test(\App\Filament\Resources\ProductResource\Pages\EditProduct::class, ['record' => $part->getRouteKey()])
+            ->fillForm([
+                'cost_price' => '8.5',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $part->refresh();
+        $this->assertEquals(8.5, (float) $part->getRawOriginal('cost_price'));
+        $this->assertEquals('Rp 8.5', ProductResource::formatPriceDisplay($part->cost_price));
+
+        // Test EditProduct Livewire form saving decimal comma '8,5'
+        \Livewire\Livewire::test(\App\Filament\Resources\ProductResource\Pages\EditProduct::class, ['record' => $part->getRouteKey()])
+            ->fillForm([
+                'cost_price' => '8,5',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $part->refresh();
+        $this->assertEquals(8.5, (float) $part->getRawOriginal('cost_price'));
+        $this->assertEquals('Rp 8.5', ProductResource::formatPriceDisplay($part->cost_price));
     }
 }
