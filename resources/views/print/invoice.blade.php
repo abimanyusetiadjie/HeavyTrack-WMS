@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Faktur Penjualan - {{ $invoice->invoice_number }}</title>
+    <title>Invoice Penjualan - {{ $invoice->invoice_number }}</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 11px; margin: 0; padding: 20px; color: #1e293b; }
         table { width: 100%; border-collapse: collapse; }
@@ -55,7 +55,7 @@
                     </table>
                 </td>
                 <td style="width: 35%; vertical-align: top;">
-                    <div class="doc-title">FAKTUR PENJUALAN</div>
+                    <div class="doc-title">INVOICE PENJUALAN</div>
                     <div class="doc-number">NO: {{ strtoupper($invoice->invoice_number) }}</div>
                 </td>
             </tr>
@@ -64,7 +64,7 @@
     
     <table class="meta-table">
         <tr>
-            <td width="15%"><strong>TGL FAKTUR</strong></td>
+            <td width="15%"><strong>TGL INVOICE</strong></td>
             <td width="35%">: {{ $invoice->invoice_date ? strtoupper(\Carbon\Carbon::parse($invoice->invoice_date)->translatedFormat('d F Y')) : '-' }}</td>
             <td width="18%"><strong>REF. SURAT JALAN</strong></td>
             <td width="32%">: {{ strtoupper($invoice->deliveryOrder?->do_number ?? '-') }}</td>
@@ -117,7 +117,7 @@
             @empty
             <tr>
                 <td colspan="6" style="text-align: center; color: #64748b; padding: 12px; font-style: italic;">
-                    (BELUM ADA RINCIAN BARANG PADA FAKTUR INI. SILAKAN TAMBAHKAN BARANG DI RINCIAN TAGIHAN).
+                    (BELUM ADA RINCIAN BARANG PADA INVOICE INI. SILAKAN TAMBAHKAN BARANG DI RINCIAN TAGIHAN).
                 </td>
             </tr>
             @endforelse
@@ -130,7 +130,7 @@
             BANK: <strong>BCA (BANK CENTRAL ASIA)</strong><br>
             NO. REKENING: <strong>6891102400</strong><br>
             ATAS NAMA: <strong>REVALDO JULIAN</strong><br>
-            <small style="color: #64748b;">* HARAP MENCANTUMKAN NOMOR FAKTUR PADA BERITA TRANSFER.</small>
+            <small style="color: #64748b;">* HARAP MENCANTUMKAN NOMOR INVOICE PADA BERITA TRANSFER.</small>
         </div>
 
         <table class="summary-table">

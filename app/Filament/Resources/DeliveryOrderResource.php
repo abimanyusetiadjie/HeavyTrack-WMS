@@ -445,10 +445,10 @@ class DeliveryOrderResource extends Resource
                         default => 'gray',
                     }),
                 Tables\Columns\TextColumn::make('invoice.invoice_number')
-                    ->label('Faktur Penjualan')
+                    ->label('Invoice Penjualan')
                     ->badge()
                     ->color(fn ($state) => $state ? 'success' : 'gray')
-                    ->formatStateUsing(fn ($state) => $state ?: 'Belum Ada Faktur')
+                    ->formatStateUsing(fn ($state) => $state ?: 'Belum Ada Invoice')
                     ->url(fn (DeliveryOrder $record) => $record->invoice ? route('filament.admin.resources.invoices.edit', ['record' => $record->invoice->id]) : null)
                     ->openUrlInNewTab(),
             ])
@@ -467,7 +467,7 @@ class DeliveryOrderResource extends Resource
             ])
             ->actions([
                 \Filament\Actions\Action::make('printInvoice')
-                    ->label(fn (DeliveryOrder $record) => $record->invoice ? 'Cetak Faktur' : 'Terbitkan & Cetak Faktur')
+                    ->label(fn (DeliveryOrder $record) => $record->invoice ? 'Cetak Invoice' : 'Terbitkan & Cetak Invoice')
                     ->icon('heroicon-o-document-currency-dollar')
                     ->color(fn (DeliveryOrder $record) => $record->invoice ? 'success' : 'warning')
                     ->size('sm')
@@ -476,20 +476,20 @@ class DeliveryOrderResource extends Resource
                         if ($record->items->isEmpty()) {
                             Notification::make()
                                 ->title('Surat Jalan Belum Memiliki Barang')
-                                ->body("Surat Jalan {$record->do_number} masih kosong (0 item). Harap klik Ubah untuk mengisi barang sebelum menerbitkan faktur.")
+                                ->body("Surat Jalan {$record->do_number} masih kosong (0 item). Harap klik Ubah untuk mengisi barang sebelum menerbitkan invoice.")
                                 ->warning()
                                 ->persistent()
                                 ->send();
                             return;
                         }
 
-                        // Jika sudah ada faktur, langsung buka PDF faktur
+                        // Jika sudah ada invoice, langsung buka PDF invoice
                         if ($record->invoice) {
                             $action->getLivewire()->js("window.open('" . route('print.invoice', ['invoice' => $record->invoice->id]) . "', '_blank');");
                             return;
                         }
 
-                        // Jika belum ada faktur, terbitkan sekarang secara transaksional
+                        // Jika belum ada invoice, terbitkan sekarang secara transaksional
                         $invoice = DB::transaction(function () use ($record) {
                             $existing = Invoice::where('delivery_order_id', $record->id)->latest()->first();
                             if ($existing) {
@@ -558,8 +558,8 @@ class DeliveryOrderResource extends Resource
                         });
 
                         Notification::make()
-                            ->title('Faktur Berhasil Diterbitkan')
-                            ->body("Faktur {$invoice->invoice_number} berhasil dibuat. Dokumen faktur sedang dibuka...")
+                            ->title('Invoice Berhasil Diterbitkan')
+                            ->body("Invoice {$invoice->invoice_number} berhasil dibuat. Dokumen invoice sedang dibuka...")
                             ->success()
                             ->send();
 

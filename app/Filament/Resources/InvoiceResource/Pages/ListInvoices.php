@@ -16,7 +16,7 @@ class ListInvoices extends ListRecords
     public function getTabs(): array
     {
         return [
-            'all' => Tab::make('Semua Faktur'),
+            'all' => Tab::make('Semua Invoice'),
             'unpaid' => Tab::make('Belum Lunas')
                 ->modifyQueryUsing(fn (Builder $query) => $query->whereIn('status', ['UNPAID', 'PARTIALLY_PAID']))
                 ->badge(fn () => Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->count())

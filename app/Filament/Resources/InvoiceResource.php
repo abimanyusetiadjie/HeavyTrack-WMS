@@ -23,8 +23,8 @@ class InvoiceResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-currency-dollar';
     protected static \UnitEnum|string|null $navigationGroup = 'Keuangan & Penjualan';
-    protected static ?string $modelLabel = 'Faktur (Invoice)';
-    protected static ?string $pluralModelLabel = 'Daftar Faktur';
+    protected static ?string $modelLabel = 'Invoice';
+    protected static ?string $pluralModelLabel = 'Daftar Invoice';
     protected static ?int $navigationSort = 1;
 
     public static function canViewAny(): bool
@@ -57,12 +57,12 @@ class InvoiceResource extends Resource
         return $schema
             ->columns(1)
             ->schema([
-                Section::make('Informasi Faktur & Pelanggan')
+                Section::make('Informasi Invoice & Pelanggan')
                     ->description('Detail invoice, pelanggan yang ditagih, dan tanggal jatuh tempo.')
                     ->columnSpanFull()
                     ->schema([
                         Forms\Components\TextInput::make('invoice_number')
-                            ->label('Nomor Faktur')
+                            ->label('Nomor Invoice')
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->extraInputAttributes(['style' => 'text-transform: uppercase'])
@@ -464,7 +464,7 @@ class InvoiceResource extends Resource
         return $table
             ->poll('30s')
             ->columns([
-                Tables\Columns\TextColumn::make('invoice_number')->label('Nomor Faktur')->searchable(),
+                Tables\Columns\TextColumn::make('invoice_number')->label('Nomor Invoice')->searchable(),
                 Tables\Columns\TextColumn::make('invoice_date')->label('Tgl Terbit')->date('d M Y')->sortable(),
                 Tables\Columns\TextColumn::make('contact.company_name')->label('Pelanggan'),
                 Tables\Columns\TextColumn::make('stock_sync_status')
@@ -494,7 +494,7 @@ class InvoiceResource extends Resource
                 \Filament\Actions\EditAction::make()->label('Ubah'),
                 
                 \Filament\Actions\Action::make('printFaktur')
-                    ->label('Cetak Faktur')
+                    ->label('Cetak Invoice')
                     ->icon('heroicon-o-printer')
                     ->color('info')
                     ->url(fn (Invoice $record): string => route('print.invoice', ['invoice' => $record->id]))
@@ -672,7 +672,7 @@ class InvoiceResource extends Resource
     }
 
     /**
-     * Memeriksa kesesuaian riil antara item pada Faktur, Surat Jalan terhubung, dan mutasi keluar di StockLedger.
+     * Memeriksa kesesuaian riil antara item pada Invoice, Surat Jalan terhubung, dan mutasi keluar di StockLedger.
      *
      * @return array{is_synced: bool, status_label: string, badge_color: string, missing_qty_by_part: array<int, int>, ledger_deducted_total: int, reason: string}
      */
@@ -681,11 +681,11 @@ class InvoiceResource extends Resource
         if ($record->status === 'VOID') {
             return [
                 'is_synced' => true,
-                'status_label' => 'Faktur Batal',
+                'status_label' => 'Invoice Batal',
                 'badge_color' => 'gray',
                 'missing_qty_by_part' => [],
                 'ledger_deducted_total' => 0,
-                'reason' => 'Faktur berstatus VOID.',
+                'reason' => 'Invoice berstatus VOID.',
             ];
         }
 
@@ -709,7 +709,7 @@ class InvoiceResource extends Resource
                 'badge_color' => 'warning',
                 'missing_qty_by_part' => $invoiceQtyByPart,
                 'ledger_deducted_total' => 0,
-                'reason' => 'Faktur tidak terhubung ke Surat Jalan sehingga stok dan buku mutasi belum terpotong.',
+                'reason' => 'Invoice tidak terhubung ke Surat Jalan sehingga stok dan buku mutasi belum terpotong.',
             ];
         }
 
@@ -763,7 +763,7 @@ class InvoiceResource extends Resource
                 'badge_color' => 'danger',
                 'missing_qty_by_part' => $missingQtyByPart,
                 'ledger_deducted_total' => $totalDeductedInLedger,
-                'reason' => "Mutasi pada {$do->do_number} hanya memotong {$totalDeductedInLedger} pcs; masih ada {$missingTotal} pcs item faktur yang belum masuk ke mutasi.",
+                'reason' => "Mutasi pada {$do->do_number} hanya memotong {$totalDeductedInLedger} pcs; masih ada {$missingTotal} pcs item invoice yang belum masuk ke mutasi.",
             ];
         }
 
@@ -773,7 +773,7 @@ class InvoiceResource extends Resource
             'badge_color' => 'success',
             'missing_qty_by_part' => [],
             'ledger_deducted_total' => $totalDeductedInLedger,
-            'reason' => "Seluruh item faktur telah terpotong resmi pada {$do->do_number} dan tercatat di histori mutasi.",
+            'reason' => "Seluruh item invoice telah terpotong resmi pada {$do->do_number} dan tercatat di histori mutasi.",
         ];
     }
 
@@ -783,7 +783,7 @@ class InvoiceResource extends Resource
             ->label('Buat SJ & Potong Stok')
             ->icon('heroicon-o-truck')
             ->color('warning')
-            ->modalHeading('Terbitkan Surat Jalan & Potong Stok dari Faktur')
+            ->modalHeading('Terbitkan Surat Jalan & Potong Stok dari Invoice')
             ->modalDescription(function (Invoice $record): string {
                 $analysis = self::analyzeInvoiceStockSync($record);
                 return $analysis['reason'] . ' Pilih gudang asal pengiriman untuk menerbitkan Surat Jalan resmi dan memotong stok secara otomatis.';
@@ -830,7 +830,7 @@ class InvoiceResource extends Resource
 
                     \Filament\Notifications\Notification::make()
                         ->title('Surat Jalan Diterbitkan & Stok Dipotong')
-                        ->body("Surat Jalan {$do->do_number} berhasil dibuat untuk Faktur {$record->invoice_number}. Saldo stok dan buku mutasi telah terpotong otomatis.")
+                        ->body("Surat Jalan {$do->do_number} berhasil dibuat untuk Invoice {$record->invoice_number}. Saldo stok dan buku mutasi telah terpotong otomatis.")
                         ->success()
                         ->persistent()
                         ->send();
@@ -849,12 +849,12 @@ class InvoiceResource extends Resource
     {
         $analysis = self::analyzeInvoiceStockSync($invoice);
         if ($analysis['is_synced']) {
-            throw new \Exception("Faktur {$invoice->invoice_number} sudah tersinkronisasi penuh dengan Surat Jalan {$invoice->deliveryOrder?->do_number}.");
+            throw new \Exception("Invoice {$invoice->invoice_number} sudah tersinkronisasi penuh dengan Surat Jalan {$invoice->deliveryOrder?->do_number}.");
         }
 
         $invoice->loadMissing('items');
         if ($invoice->items->isEmpty()) {
-            throw new \Exception("Faktur {$invoice->invoice_number} tidak memiliki rincian barang.");
+            throw new \Exception("Invoice {$invoice->invoice_number} tidak memiliki rincian barang.");
         }
 
         $warehouseId = (int) ($data['warehouse_id'] ?? 0);
@@ -865,7 +865,7 @@ class InvoiceResource extends Resource
         return \Illuminate\Support\Facades\DB::transaction(function () use ($invoice, $data, $warehouseId, $analysis) {
             $missingByPart = $analysis['missing_qty_by_part'];
             if (empty($missingByPart)) {
-                throw new \Exception("Tidak ada item produk pada faktur yang perlu dipotong stoknya (pastikan item faktur terhubung ke Master Produk).");
+                throw new \Exception("Tidak ada item produk pada invoice yang perlu dipotong stoknya (pastikan item invoice terhubung ke Master Produk).");
             }
 
             foreach ($missingByPart as $partId => $needed) {
@@ -901,7 +901,7 @@ class InvoiceResource extends Resource
                 'delivery_date' => $data['delivery_date'] ?? $invoice->invoice_date ?? now()->toDateString(),
                 'driver_name' => $data['driver_name'] ?? null,
                 'vehicle_plate_number' => $data['vehicle_plate_number'] ?? null,
-                'notes' => 'DITERBITKAN DARI FAKTUR ' . $invoice->invoice_number,
+                'notes' => 'DITERBITKAN DARI INVOICE ' . $invoice->invoice_number,
                 'status' => 'CONFIRMED',
                 'created_by' => auth()->id() ?? $invoice->created_by ?? 1,
             ]);

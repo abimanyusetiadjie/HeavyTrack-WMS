@@ -83,7 +83,7 @@
             <td><strong>UNTUK PEMBAYARAN</strong></td>
             <td>:</td>
             <td>
-                PELUNASAN / PEMBAYARAN FAKTUR PENJUALAN NO. <strong>{{ strtoupper($invoice->invoice_number) }}</strong>
+                PELUNASAN / PEMBAYARAN INVOICE PENJUALAN NO. <strong>{{ strtoupper($invoice->invoice_number) }}</strong>
                 @if($latestPayment?->reference_number)
                     <br><span style="font-size: 11px; color: #64748b;">(REF / BUKTI TRANSFER: {{ strtoupper($latestPayment->reference_number) }})</span>
                 @endif

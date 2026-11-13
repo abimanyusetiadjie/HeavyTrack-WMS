@@ -112,7 +112,7 @@ class MigrateSqliteToMysqlCommand extends Command
             if ($stmtPart) $partCount = (int) $stmtPart->fetchColumn();
         } catch (\Throwable $e) {}
 
-        $this->line("   - Ringkasan Data   : <comment>{$partCount} Produk, {$doCount} Surat Jalan, {$invCount} Faktur</comment>");
+        $this->line("   - Ringkasan Data   : <comment>{$partCount} Produk, {$doCount} Surat Jalan, {$invCount} Invoice</comment>");
 
         // Jika file ini memiliki 0 Surat Jalan, cek apakah ada file cadangan lain yang memiliki data Surat Jalan
         if ($doCount === 0 && !$this->option('source')) {

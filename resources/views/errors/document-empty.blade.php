@@ -25,7 +25,7 @@
         </h1>
 
         <p class="text-slate-600 text-sm mb-6 leading-relaxed">
-            Surat Jalan <span class="font-mono font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">{{ $doNumber ?? 'SJ' }}</span> saat ini masih kosong (0 item). Faktur penjualan resmi hanya dapat diterbitkan untuk Surat Jalan yang sudah memiliki rincian barang.
+            Surat Jalan <span class="font-mono font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">{{ $doNumber ?? 'SJ' }}</span> saat ini masih kosong (0 item). Invoice penjualan resmi hanya dapat diterbitkan untuk Surat Jalan yang sudah memiliki rincian barang.
         </p>
 
         <div class="space-y-3">

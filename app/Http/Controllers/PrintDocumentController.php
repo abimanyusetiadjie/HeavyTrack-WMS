@@ -27,11 +27,11 @@ class PrintDocumentController extends Controller
     public function printInvoiceFromDeliveryOrder(DeliveryOrder $deliveryOrder)
     {
         $user = auth()->user();
-        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Faktur.');
+        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Invoice.');
 
         $deliveryOrder->load(['items.part' => fn ($q) => $q->withTrashed(), 'contact']);
         
-        abort_if($deliveryOrder->status === 'VOID', 400, 'Surat Jalan berstatus BATAL (VOID) tidak dapat diterbitkan fakturnya.');
+        abort_if($deliveryOrder->status === 'VOID', 400, 'Surat Jalan berstatus BATAL (VOID) tidak dapat diterbitkan invoicenya.');
 
         // Jika Surat Jalan belum memiliki barang, tampilkan petunjuk ramah & link edit
         if ($deliveryOrder->items->isEmpty()) {
@@ -118,17 +118,17 @@ class PrintDocumentController extends Controller
 
         $invoice->load(['items', 'contact', 'creator', 'deliveryOrder']);
         $pdf = Pdf::loadView('print.invoice', ['invoice' => $invoice])->setPaper('a4', 'portrait');
-        return $pdf->stream('Faktur_' . str_replace('/', '_', $invoice->invoice_number) . '.pdf');
+        return $pdf->stream('Invoice_' . str_replace('/', '_', $invoice->invoice_number) . '.pdf');
     }
 
     public function printInvoice(Invoice $invoice)
     {
         $user = auth()->user();
-        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Faktur keuangan.');
+        abort_unless($user && ($user->isOwner() || $user->isAdmin()), 403, 'Anda tidak memiliki akses untuk mencetak Invoice keuangan.');
 
         $invoice->load(['items', 'contact', 'creator', 'deliveryOrder']);
         $pdf = Pdf::loadView('print.invoice', ['invoice' => $invoice])->setPaper('a4', 'portrait');
-        return $pdf->stream('Faktur_' . str_replace('/', '_', $invoice->invoice_number) . '.pdf');
+        return $pdf->stream('Invoice_' . str_replace('/', '_', $invoice->invoice_number) . '.pdf');
     }
 
     public function printReceipt(Invoice $invoice)

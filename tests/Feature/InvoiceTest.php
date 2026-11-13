@@ -64,7 +64,7 @@ class InvoiceTest extends TestCase
 
         $response = $this->actingAs($user)->get('/admin/invoices');
         $response->assertSuccessful();
-        $response->assertSee('Semua Faktur');
+        $response->assertSee('Semua Invoice');
         $response->assertSee('Belum Lunas');
         $response->assertSee('Lunas');
         $response->assertSee('Batal');
@@ -144,9 +144,9 @@ class InvoiceTest extends TestCase
         $this->assertEquals('TRF-BCA-889900', $payment->fresh()->reference_number);
         $this->assertEquals('PEMBAYARAN LUNAS TAGIHAN FILTER ALAT BERAT', $payment->fresh()->notes);
 
-        // 2. Verifikasi print view Faktur
+        // 2. Verifikasi print view Invoice
         $invoiceView = view('print.invoice', ['invoice' => $invoice->fresh()->load(['items.part', 'contact', 'creator', 'deliveryOrder'])])->render();
-        $this->assertStringContainsString('FAKTUR PENJUALAN', $invoiceView);
+        $this->assertStringContainsString('INVOICE PENJUALAN', $invoiceView);
         $this->assertStringContainsString('INV/202610/7788', $invoiceView);
         $this->assertStringContainsString('PT SINAR ABADI TEKNIK', $invoiceView);
         $this->assertStringContainsString('KAWASAN INDUSTRI MM2100 CIKARANG', $invoiceView);

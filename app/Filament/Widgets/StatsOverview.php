@@ -70,7 +70,7 @@ class StatsOverview extends BaseWidget
                 - Invoice::whereIn('status', ['UNPAID', 'PARTIALLY_PAID'])->sum('paid_amount');
 
             $stats[] = Stat::make('Piutang Belum Lunas', 'Rp ' . number_format($unpaidAmount, 0, ',', '.'))
-                ->description('Tagihan faktur berjalan')
+                ->description('Tagihan invoice berjalan')
                 ->descriptionIcon('heroicon-m-currency-dollar')
                 ->color($unpaidAmount > 0 ? 'danger' : 'success')
                 ->url('/admin/invoices');

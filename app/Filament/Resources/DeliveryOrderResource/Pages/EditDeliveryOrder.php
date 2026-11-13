@@ -23,7 +23,7 @@ class EditDeliveryOrder extends EditRecord
     {
         return [
             Actions\Action::make('printInvoice')
-                ->label(fn (): string => $this->record->invoice ? 'Cetak Faktur' : 'Terbitkan & Cetak Faktur')
+                ->label(fn (): string => $this->record->invoice ? 'Cetak Invoice' : 'Terbitkan & Cetak Invoice')
                 ->icon('heroicon-o-document-currency-dollar')
                 ->color(fn (): string => $this->record->invoice ? 'success' : 'warning')
                 ->action(function () {
@@ -113,8 +113,8 @@ class EditDeliveryOrder extends EditRecord
                     });
 
                     Notification::make()
-                        ->title('Faktur Berhasil Diterbitkan')
-                        ->body("Faktur resmi {$invoice->invoice_number} berhasil dibuat. Dokumen faktur sedang dibuka...")
+                        ->title('Invoice Berhasil Diterbitkan')
+                        ->body("Invoice resmi {$invoice->invoice_number} berhasil dibuat. Dokumen invoice sedang dibuka...")
                         ->success()
                         ->send();
 

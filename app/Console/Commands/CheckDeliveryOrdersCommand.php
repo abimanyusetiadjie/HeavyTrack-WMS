@@ -57,15 +57,15 @@ class CheckDeliveryOrdersCommand extends Command
             }
         }
 
-        // 2. Cek hubungan dengan tabel Invoices (Faktur Penjualan)
+        // 2. Cek hubungan dengan tabel Invoices (Invoice Penjualan)
         $this->newLine();
-        $this->info("2. MEMERIKSA FAKTUR PENJUALAN YANG TERSEDIA:");
+        $this->info("2. MEMERIKSA INVOICE PENJUALAN YANG TERSEDIA:");
         $invoices = Invoice::with(['contact', 'items'])->get();
-        $this->line("   Ditemukan total <comment>{$invoices->count()}</comment> Faktur di database.");
+        $this->line("   Ditemukan total <comment>{$invoices->count()}</comment> Invoice di database.");
 
         $missingDoInvoices = [];
         if ($invoices->isNotEmpty()) {
-            $invHeaders = ['ID Faktur', 'Nomor Faktur', 'Tgl Faktur', 'Pelanggan', 'Total Tagihan', 'Ref Surat Jalan ID'];
+            $invHeaders = ['ID Invoice', 'Nomor Invoice', 'Tgl Invoice', 'Pelanggan', 'Total Tagihan', 'Ref Surat Jalan ID'];
             $invRows = [];
             foreach ($invoices as $inv) {
                 $hasDo = $inv->delivery_order_id && DeliveryOrder::where('id', $inv->delivery_order_id)->exists();
@@ -136,11 +136,11 @@ class CheckDeliveryOrdersCommand extends Command
             $this->line("   Tidak ada file SQLite eksternal dengan Surat Jalan.");
         }
 
-        // 4. Jika ada faktur yang kehilangan DO dan tabel DO masih kosong, buatkan DO otomatis dari faktur
+        // 4. Jika ada invoice yang kehilangan DO dan tabel DO masih kosong, buatkan DO otomatis dari invoice
         if (DeliveryOrder::count() === 0 && $invoices->isNotEmpty()) {
             $this->newLine();
-            $this->warn("Tabel Surat Jalan masih kosong, tetapi Faktur Anda memiliki rincian barang.");
-            if ($this->option('restore-all') || $this->confirm("Apakah Anda ingin otomatis meng-generate Surat Jalan dari Faktur Penjualan yang ada?", true)) {
+            $this->warn("Tabel Surat Jalan masih kosong, tetapi Invoice Anda memiliki rincian barang.");
+            if ($this->option('restore-all') || $this->confirm("Apakah Anda ingin otomatis meng-generate Surat Jalan dari Invoice Penjualan yang ada?", true)) {
                 $this->generateDoFromInvoices($invoices);
             }
         }
@@ -210,10 +210,10 @@ class CheckDeliveryOrdersCommand extends Command
                 'created_by' => $inv->created_by ?? 1,
             ]);
 
-            // Update faktur agar menghubungkan ke DO ini
+            // Update invoice agar menghubungkan ke DO ini
             $inv->update(['delivery_order_id' => $do->id]);
 
-            // Salin rincian barang dari faktur
+            // Salin rincian barang dari invoice
             foreach ($inv->items as $item) {
                 DeliveryOrderItem::create([
                     'delivery_order_id' => $do->id,
@@ -223,9 +223,9 @@ class CheckDeliveryOrdersCommand extends Command
                 ]);
             }
 
-            $this->line("   - Dibuatkan Surat Jalan <info>{$doNumber}</info> untuk Faktur {$inv->invoice_number}");
+            $this->line("   - Dibuatkan Surat Jalan <info>{$doNumber}</info> untuk Invoice {$inv->invoice_number}");
         }
 
-        $this->info("[SUKSES] Seluruh Surat Jalan berhasil dibuat dari data Faktur!");
+        $this->info("[SUKSES] Seluruh Surat Jalan berhasil dibuat dari data Invoice!");
     }
 }

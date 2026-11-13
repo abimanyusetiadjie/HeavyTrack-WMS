@@ -154,15 +154,15 @@ class SystemPerformanceFATTest extends TestCase
             ['GET', '/admin/stock-ledgers', 'Buku Mutasi Stok (Tab Filters)', true],
             ['GET', '/admin/delivery-orders', 'Daftar Surat Jalan (DO)', true],
             ['GET', '/admin/delivery-orders/create', 'Form Buat Surat Jalan (DO)', true],
-            ['GET', '/admin/invoices', 'Daftar Faktur Penjualan', true],
-            ['GET', '/admin/invoices/create', 'Form Buat Faktur Penjualan', true],
+            ['GET', '/admin/invoices', 'Daftar Invoice Penjualan', true],
+            ['GET', '/admin/invoices/create', 'Form Buat Invoice Penjualan', true],
             ['GET', '/admin/goods-receipts', 'Daftar Restock Masuk (LPB)', true],
             ['GET', '/admin/goods-receipts/create', 'Form Restock Masuk (LPB)', true],
             ['GET', '/admin/warehouses', 'Daftar Gudang (2 Locked)', true],
             ['GET', '/admin/contacts', 'Daftar Kontak (Customer & Supplier)', true],
             ['GET', '/print/delivery-order/' . $doCompact->id, 'Cetak SJ (Halaman Penuh A4)', true],
             ['GET', '/print/delivery-order/' . $doFull->id, 'Cetak SJ Banyak Item (A4)', true],
-            ['GET', '/print/invoice/' . $invoice->id, 'Cetak Faktur Penjualan (A4 Portrait)', true],
+            ['GET', '/print/invoice/' . $invoice->id, 'Cetak Invoice Penjualan (A4 Portrait)', true],
             ['GET', '/print/receipt/' . $invoice->id, 'Cetak Kwitansi Pembayaran (A5 Landscape)', true],
         ];
 
