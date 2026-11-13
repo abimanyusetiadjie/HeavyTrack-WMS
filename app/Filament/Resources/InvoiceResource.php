@@ -470,29 +470,9 @@ class InvoiceResource extends Resource
                 Tables\Columns\TextColumn::make('stock_sync_status')
                     ->label('Surat Jalan & Stok')
                     ->badge()
-                    ->state(function (Invoice $record): string {
-                        if ($record->status === 'VOID') {
-                            return 'Faktur Batal';
-                        }
-                        if ($record->deliveryOrder) {
-                            $doStatus = in_array($record->deliveryOrder->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true);
-                            return $doStatus
-                                ? "{$record->deliveryOrder->do_number} (Stok Dipotong)"
-                                : "{$record->deliveryOrder->do_number} ({$record->deliveryOrder->status})";
-                        }
-
-                        return 'Tanpa SJ (Stok Belum Dipotong)';
-                    })
-                    ->color(function (Invoice $record): string {
-                        if ($record->status === 'VOID') {
-                            return 'gray';
-                        }
-                        if ($record->deliveryOrder && in_array($record->deliveryOrder->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true)) {
-                            return 'success';
-                        }
-
-                        return 'warning';
-                    })
+                    ->state(fn (Invoice $record): string => self::analyzeInvoiceStockSync($record)['status_label'])
+                    ->color(fn (Invoice $record): string => self::analyzeInvoiceStockSync($record)['badge_color'])
+                    ->tooltip(fn (Invoice $record): ?string => self::analyzeInvoiceStockSync($record)['reason'] ?: null)
                     ->url(fn (Invoice $record): ?string => $record->deliveryOrder ? route('filament.admin.resources.delivery-orders.edit', ['record' => $record->deliveryOrder->id]) : null),
                 Tables\Columns\TextColumn::make('grand_total')->label('Total Tagihan')->money('IDR'),
                 Tables\Columns\TextColumn::make('status')
@@ -691,6 +671,112 @@ class InvoiceResource extends Resource
         $set('../../grand_total', self::formatMoney($grandTotal));
     }
 
+    /**
+     * Memeriksa kesesuaian riil antara item pada Faktur, Surat Jalan terhubung, dan mutasi keluar di StockLedger.
+     *
+     * @return array{is_synced: bool, status_label: string, badge_color: string, missing_qty_by_part: array<int, int>, ledger_deducted_total: int, reason: string}
+     */
+    public static function analyzeInvoiceStockSync(Invoice $record): array
+    {
+        if ($record->status === 'VOID') {
+            return [
+                'is_synced' => true,
+                'status_label' => 'Faktur Batal',
+                'badge_color' => 'gray',
+                'missing_qty_by_part' => [],
+                'ledger_deducted_total' => 0,
+                'reason' => 'Faktur berstatus VOID.',
+            ];
+        }
+
+        $record->loadMissing(['deliveryOrder', 'items']);
+
+        $invoiceQtyByPart = [];
+        $hasUnlinkedItems = false;
+        foreach ($record->items as $item) {
+            if (! $item->part_id) {
+                $hasUnlinkedItems = true;
+                continue;
+            }
+            $invoiceQtyByPart[(int) $item->part_id] = ($invoiceQtyByPart[(int) $item->part_id] ?? 0) + max(0, (int) $item->qty);
+        }
+
+        $do = $record->deliveryOrder;
+        if (! $do) {
+            return [
+                'is_synced' => false,
+                'status_label' => 'Tanpa SJ (Stok Belum Dipotong)',
+                'badge_color' => 'warning',
+                'missing_qty_by_part' => $invoiceQtyByPart,
+                'ledger_deducted_total' => 0,
+                'reason' => 'Faktur tidak terhubung ke Surat Jalan sehingga stok dan buku mutasi belum terpotong.',
+            ];
+        }
+
+        $activeStatuses = ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'];
+        if (! in_array($do->status, $activeStatuses, true)) {
+            return [
+                'is_synced' => false,
+                'status_label' => "{$do->do_number} ({$do->status} - Belum Dipotong)",
+                'badge_color' => 'warning',
+                'missing_qty_by_part' => $invoiceQtyByPart,
+                'ledger_deducted_total' => 0,
+                'reason' => "Surat Jalan {$do->do_number} berstatus {$do->status} sehingga belum memotong stok gudang.",
+            ];
+        }
+
+        $ledgerNetByPart = \App\Models\StockLedger::where('reference_id', $do->id)
+            ->whereIn('reference_type', ['DELIVERY_ORDER', 'DELIVERY_ORDER_VOID'])
+            ->selectRaw('part_id, SUM(qty_change) as net_qty')
+            ->groupBy('part_id')
+            ->pluck('net_qty', 'part_id');
+
+        $totalDeductedInLedger = 0;
+        foreach ($ledgerNetByPart as $netQty) {
+            $totalDeductedInLedger += abs(min(0, (int) $netQty));
+        }
+
+        $missingQtyByPart = [];
+        foreach ($invoiceQtyByPart as $partId => $expectedQty) {
+            $deductedQty = abs(min(0, (int) ($ledgerNetByPart[$partId] ?? 0)));
+            if ($deductedQty < $expectedQty) {
+                $missingQtyByPart[$partId] = $expectedQty - $deductedQty;
+            }
+        }
+
+        if ($totalDeductedInLedger === 0) {
+            return [
+                'is_synced' => false,
+                'status_label' => "{$do->do_number} (Mutasi 0 - Belum Dipotong!)",
+                'badge_color' => 'danger',
+                'missing_qty_by_part' => $missingQtyByPart,
+                'ledger_deducted_total' => 0,
+                'reason' => "Terhubung ke {$do->do_number}, tetapi 0 qty tercatat di histori mutasi StockLedger!",
+            ];
+        }
+
+        if (! empty($missingQtyByPart) || $hasUnlinkedItems) {
+            $missingTotal = array_sum($missingQtyByPart);
+            return [
+                'is_synced' => false,
+                'status_label' => "{$do->do_number} (Item Mutasi Tidak Cocok!)",
+                'badge_color' => 'danger',
+                'missing_qty_by_part' => $missingQtyByPart,
+                'ledger_deducted_total' => $totalDeductedInLedger,
+                'reason' => "Mutasi pada {$do->do_number} hanya memotong {$totalDeductedInLedger} pcs; masih ada {$missingTotal} pcs item faktur yang belum masuk ke mutasi.",
+            ];
+        }
+
+        return [
+            'is_synced' => true,
+            'status_label' => "{$do->do_number} (Stok Dipotong)",
+            'badge_color' => 'success',
+            'missing_qty_by_part' => [],
+            'ledger_deducted_total' => $totalDeductedInLedger,
+            'reason' => "Seluruh item faktur telah terpotong resmi pada {$do->do_number} dan tercatat di histori mutasi.",
+        ];
+    }
+
     public static function makeIssueDeliveryOrderAction(\Filament\Actions\Action $action): \Filament\Actions\Action
     {
         return $action
@@ -698,7 +784,10 @@ class InvoiceResource extends Resource
             ->icon('heroicon-o-truck')
             ->color('warning')
             ->modalHeading('Terbitkan Surat Jalan & Potong Stok dari Faktur')
-            ->modalDescription('Faktur ini dibuat tanpa Surat Jalan sehingga belum memotong stok gudang. Pilih gudang asal barang untuk membuat Surat Jalan resmi dan memotong stok secara otomatis.')
+            ->modalDescription(function (Invoice $record): string {
+                $analysis = self::analyzeInvoiceStockSync($record);
+                return $analysis['reason'] . ' Pilih gudang asal pengiriman untuk menerbitkan Surat Jalan resmi dan memotong stok secara otomatis.';
+            })
             ->form([
                 Forms\Components\Select::make('warehouse_id')
                     ->label('Gudang Asal Pengiriman')
@@ -734,7 +823,7 @@ class InvoiceResource extends Resource
                     ->maxLength(30)
                     ->extraInputAttributes(['style' => 'text-transform: uppercase']),
             ])
-            ->visible(fn (Invoice $record): bool => ! $record->deliveryOrder && $record->status !== 'VOID')
+            ->visible(fn (Invoice $record): bool => $record->status !== 'VOID' && ! self::analyzeInvoiceStockSync($record)['is_synced'])
             ->action(function (Invoice $record, array $data): void {
                 try {
                     $do = self::issueDeliveryOrderFromInvoice($record, $data);
@@ -758,8 +847,9 @@ class InvoiceResource extends Resource
 
     public static function issueDeliveryOrderFromInvoice(Invoice $invoice, array $data): DeliveryOrder
     {
-        if ($invoice->deliveryOrder) {
-            throw new \Exception("Faktur {$invoice->invoice_number} sudah terhubung dengan Surat Jalan.");
+        $analysis = self::analyzeInvoiceStockSync($invoice);
+        if ($analysis['is_synced']) {
+            throw new \Exception("Faktur {$invoice->invoice_number} sudah tersinkronisasi penuh dengan Surat Jalan {$invoice->deliveryOrder?->do_number}.");
         }
 
         $invoice->loadMissing('items');
@@ -772,17 +862,13 @@ class InvoiceResource extends Resource
             throw new \Exception('Gudang asal pengiriman wajib dipilih.');
         }
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($invoice, $data, $warehouseId) {
-            // 1. Validasi stok per part terlebih dahulu sebelum membuat DO
-            $qtyByPart = [];
-            foreach ($invoice->items as $item) {
-                if (! $item->part_id || (int) $item->qty <= 0) {
-                    throw new \Exception("Ada baris barang pada faktur yang tidak valid atau belum terhubung ke Master Produk.");
-                }
-                $qtyByPart[$item->part_id] = ($qtyByPart[$item->part_id] ?? 0) + (int) $item->qty;
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($invoice, $data, $warehouseId, $analysis) {
+            $missingByPart = $analysis['missing_qty_by_part'];
+            if (empty($missingByPart)) {
+                throw new \Exception("Tidak ada item produk pada faktur yang perlu dipotong stoknya (pastikan item faktur terhubung ke Master Produk).");
             }
 
-            foreach ($qtyByPart as $partId => $needed) {
+            foreach ($missingByPart as $partId => $needed) {
                 $available = (int) (\App\Models\StockBalance::where('warehouse_id', $warehouseId)
                     ->where('part_id', $partId)
                     ->value('qty_on_hand') ?? 0);
@@ -790,11 +876,11 @@ class InvoiceResource extends Resource
                 if ($available < $needed) {
                     $part = Part::withTrashed()->find($partId);
                     $partName = $part ? "{$part->part_number} ({$part->name})" : "Part ID #{$partId}";
-                    throw new \Exception("Stok fisik tidak mencukupi untuk {$partName} di gudang terpilih. Tersedia: {$available}, dibutuhkan sesuai faktur: {$needed}.");
+                    throw new \Exception("Stok fisik tidak mencukupi untuk {$partName} di gudang terpilih. Tersedia: {$available}, dibutuhkan: {$needed}.");
                 }
             }
 
-            // 2. Generate nomor Surat Jalan berikutnya
+            // Generate nomor Surat Jalan berikutnya
             $prefix = 'SJ/' . date('Ym', strtotime((string) ($data['delivery_date'] ?? now()))) . '/';
             $latest = DeliveryOrder::withTrashed()
                 ->where('do_number', 'like', $prefix . '%')
@@ -820,12 +906,19 @@ class InvoiceResource extends Resource
                 'created_by' => auth()->id() ?? $invoice->created_by ?? 1,
             ]);
 
+            $unitByPart = [];
             foreach ($invoice->items as $item) {
+                if ($item->part_id) {
+                    $unitByPart[(int) $item->part_id] = mb_strtoupper($item->unit ?: 'PCS', 'UTF-8');
+                }
+            }
+
+            foreach ($missingByPart as $partId => $qty) {
                 \App\Models\DeliveryOrderItem::create([
                     'delivery_order_id' => $do->id,
-                    'part_id' => $item->part_id,
-                    'qty' => (int) $item->qty,
-                    'unit' => mb_strtoupper($item->unit ?: 'PCS', 'UTF-8'),
+                    'part_id' => $partId,
+                    'qty' => (int) $qty,
+                    'unit' => $unitByPart[$partId] ?? 'PCS',
                 ]);
             }
 
@@ -849,6 +942,6 @@ class InvoiceResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['contact', 'deliveryOrder']);
+        return parent::getEloquentQuery()->with(['contact', 'deliveryOrder', 'items']);
     }
 }

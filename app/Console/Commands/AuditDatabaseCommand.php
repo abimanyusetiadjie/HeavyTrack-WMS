@@ -226,38 +226,39 @@ class AuditDatabaseCommand extends Command
         }
 
         $this->newLine();
-        $this->info("7B. AUDIT FAKTUR PENJUALAN TANPA SURAT JALAN (KONFIRMASI STATUS STOK):");
-        $standaloneInvoices = Invoice::with(['contact', 'items.part.stockBalances.warehouse'])
+        $this->info("7B. AUDIT FAKTUR PENJUALAN VS SURAT JALAN & MUTASI STOK RIIL (stock_ledgers):");
+        $activeInvoices = Invoice::with(['contact', 'deliveryOrder', 'items.part.stockBalances'])
             ->where('status', '!=', 'VOID')
-            ->where(function ($q) {
-                $q->whereNull('delivery_order_id')
-                  ->orWhereDoesntHave('deliveryOrder');
-            })
             ->orderBy('id')
             ->get();
 
-        if ($standaloneInvoices->isEmpty()) {
-            $this->info("   [OKE] Seluruh Faktur aktif telah terhubung ke Surat Jalan (stok tercatat resmi).");
-        } else {
-            $this->warn("   Ditemukan " . $standaloneInvoices->count() . " Faktur TANPA Surat Jalan (stok gudang & buku mutasi BELUM berkurang untuk faktur ini):");
-            $invAuditRows = [];
-            foreach ($standaloneInvoices as $inv) {
-                $itemSummary = $inv->items->map(function ($it) {
+        $unsyncedInvoices = [];
+        foreach ($activeInvoices as $inv) {
+            $analysis = \App\Filament\Resources\InvoiceResource::analyzeInvoiceStockSync($inv);
+            if (! $analysis['is_synced']) {
+                $itemSummary = $inv->items->map(function ($it) use ($analysis) {
                     $pn = $it->part?->part_number ?? $it->part_number_snapshot ?? ('Part#' . $it->part_id);
                     $curStock = $it->part ? (int) $it->part->stockBalances->sum('qty_on_hand') : 0;
-                    return "{$pn} (Qty Faktur: {$it->qty} | Stok Sistem Saat Ini: {$curStock})";
+                    $missing = $analysis['missing_qty_by_part'][(int) $it->part_id] ?? 0;
+                    return "{$pn} (Qty Faktur: {$it->qty} | Belum Mutasi: {$missing} | Stok Kini: {$curStock})";
                 })->implode('; ');
-                $invAuditRows[] = [
+                $unsyncedInvoices[] = [
                     $inv->invoice_number,
                     $inv->invoice_date ?? '-',
                     $inv->contact?->company_name ?? '-',
-                    $inv->status,
+                    $inv->deliveryOrder?->do_number ?? '-',
+                    $analysis['status_label'],
                     $itemSummary ?: '(0 item)',
-                    'BELUM POTONG STOK',
                 ];
             }
-            $this->table(['No. Faktur', 'Tanggal', 'Pelanggan', 'Status', 'Rincian Item & Stok Sistem', 'Status Stok'], $invAuditRows);
-            $this->line("   Tips: Untuk memotong stok resmi & menerbitkan Surat Jalan, buka menu Daftar Faktur -> klik 'Buat SJ & Potong Stok' pada masing-masing faktur.");
+        }
+
+        if (empty($unsyncedInvoices)) {
+            $this->info("   [OKE] Seluruh Faktur aktif telah terhubung ke Surat Jalan & 100% terpotong di StockLedger.");
+        } else {
+            $this->warn("   Ditemukan " . count($unsyncedInvoices) . " Faktur yang BELUM terpotong stoknya / mutasinya tidak cocok di database StockLedger:");
+            $this->table(['No. Faktur', 'Tanggal', 'Pelanggan', 'Ref SJ', 'Status Riil Database', 'Rincian Item & Stok'], $unsyncedInvoices);
+            $this->line("   Tips: Di menu Daftar Faktur web, klik tombol 'Buat SJ & Potong Stok' pada faktur yang bersangkutan.");
         }
 
         $this->newLine();

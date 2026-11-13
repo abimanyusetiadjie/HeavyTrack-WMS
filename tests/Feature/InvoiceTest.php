@@ -246,4 +246,87 @@ class InvoiceTest extends TestCase
             ->assertSuccessful()
             ->assertSee($do->do_number . ' (Stok Dipotong)');
     }
+
+    public function test_invoice_linked_to_empty_or_unmatched_delivery_order_shows_red_unposted_badge_not_false_deducted(): void
+    {
+        $user = User::factory()->create(['email' => 'owner_false_do@heavytrack.com']);
+        $user->syncRoles([\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner'])]);
+        $this->actingAs($user);
+
+        $gma = Warehouse::firstOrCreate(['code' => 'GMA'], ['name' => 'GUDANG MITRA ABADI', 'is_active' => true]);
+        $contact = Contact::create(['company_name' => 'ANUGRAH JAYA TRACTOR', 'type' => 'CUSTOMER']);
+        $brand = Brand::firstOrCreate(['name' => 'Fleetguard'], ['code' => 'FLT']);
+        $cat = Category::firstOrCreate(['name' => 'Fuel Filter'], ['code' => 'FF']);
+
+        $part = Part::create([
+            'part_number' => 'P55-493M',
+            'name' => 'Heavy Duty Filter',
+            'brand_id' => $brand->id,
+            'category_id' => $cat->id,
+            'selling_price' => 49354000,
+        ]);
+
+        app(\App\Services\InventoryService::class)->addStock($gma->id, $part->id, 50, 'INITIAL_STOCK', $part->id, 'INIT/493', 'Saldo Awal');
+
+        // Simulasikan Surat Jalan lama SJ/202610/0002 berstatus CONFIRMED tetapi 0 mutasi StockLedger untuk barang faktur ini
+        $emptyDo = DeliveryOrder::create([
+            'do_number' => 'SJ/202610/0002',
+            'warehouse_id' => $gma->id,
+            'contact_id' => $contact->id,
+            'delivery_date' => '2026-10-15',
+            'status' => 'CONFIRMED',
+            'created_by' => $user->id,
+        ]);
+
+        $invoice = \App\Models\Invoice::create([
+            'invoice_number' => 'INV/202611/0006',
+            'delivery_order_id' => $emptyDo->id,
+            'contact_id' => $contact->id,
+            'invoice_date' => '2026-11-13',
+            'due_date' => '2026-12-13',
+            'status' => 'UNPAID',
+            'subtotal' => 493540000,
+            'grand_total' => 493540000,
+            'created_by' => $user->id,
+        ]);
+
+        \App\Models\InvoiceItem::create([
+            'invoice_id' => $invoice->id,
+            'part_id' => $part->id,
+            'part_number_snapshot' => 'P55-493M',
+            'part_name_snapshot' => 'Heavy Duty Filter',
+            'qty' => 10,
+            'unit' => 'PCS',
+            'unit_price' => 49354000,
+            'total_price' => 493540000,
+        ]);
+
+        // TIDAK BOLEH menampilkan "(Stok Dipotong)"! Harus jujur menampilkan bahwa mutasi masih 0 / belum dipotong!
+        $this->get('/admin/invoices')
+            ->assertSuccessful()
+            ->assertSee('INV/202611/0006')
+            ->assertSee('SJ/202610/0002 (Mutasi 0 - Belum Dipotong!)')
+            ->assertDontSee('SJ/202610/0002 (Stok Dipotong)');
+
+        // Pastikan tombol perbaikan 'Buat SJ & Potong Stok' tetap tersedia dan berfungsi memotong 10 pcs
+        $newDo = InvoiceResource::issueDeliveryOrderFromInvoice($invoice->fresh(), [
+            'warehouse_id' => $gma->id,
+            'delivery_date' => '2026-11-13',
+        ]);
+
+        $this->assertEquals(40, \App\Models\StockBalance::where('warehouse_id', $gma->id)->where('part_id', $part->id)->value('qty_on_hand'));
+        $this->assertDatabaseHas('stock_ledgers', [
+            'reference_type' => 'DELIVERY_ORDER',
+            'reference_id' => $newDo->id,
+            'part_id' => $part->id,
+            'qty_change' => -10,
+            'balance_before' => 50,
+            'balance_after' => 40,
+        ]);
+
+        // Sekarang barulah status sah menjadi "(Stok Dipotong)"
+        $this->get('/admin/invoices')
+            ->assertSuccessful()
+            ->assertSee($newDo->do_number . ' (Stok Dipotong)');
+    }
 }
