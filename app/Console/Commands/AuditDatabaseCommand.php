@@ -152,24 +152,27 @@ class AuditDatabaseCommand extends Command
         }
 
         $this->newLine();
-        $this->info("5. AUDIT PRODUK & HARGA YANG TERAKHIR DIUBAH (LATEST UPDATED PARTS):");
-        $parts = Part::with('stockBalances')->orderByDesc('updated_at')->take(10)->get();
+        $this->info("5. AUDIT PRODUK, LOKASI GUDANG & HARGA (TOP 30 PRODUK):");
+        $parts = Part::with(['stockBalances.warehouse'])->orderBy('part_number')->take(30)->get();
         if ($parts->isEmpty()) {
             $this->warn("   Belum ada data produk di database.");
         } else {
-            $partHeaders = ['ID', 'Nomor Part', 'Nama Barang', 'Harga Jual', 'HPP Modal', 'Min Stok', 'Total Stok', 'Terakhir Diubah'];
+            $partHeaders = ['ID', 'Nomor Part', 'Nama Barang', 'Lokasi (bin)', 'Rincian Stok Per Gudang', 'Total Stok', 'Harga Jual'];
             $partRows = [];
             foreach ($parts as $p) {
                 $totStock = $p->stockBalances->sum('qty_on_hand');
+                $perWh = $p->stockBalances->map(function ($sb) {
+                    $code = $sb->warehouse?->code ?? ('WH#' . $sb->warehouse_id);
+                    return "{$code}: {$sb->qty_on_hand}";
+                })->implode(', ');
                 $partRows[] = [
                     $p->id,
                     $p->part_number,
-                    \Illuminate\Support\Str::limit($p->name, 25),
-                    \App\Filament\Resources\ProductResource::formatPriceDisplay($p->selling_price),
-                    \App\Filament\Resources\ProductResource::formatPriceDisplay($p->getRawOriginal('cost_price')),
-                    $p->min_stock_level ?? 5,
+                    \Illuminate\Support\Str::limit($p->name, 22),
+                    $p->bin_location ?? '-',
+                    $perWh !== '' ? $perWh : '-',
                     $totStock . ' ' . ($p->unit ?? 'PCS'),
-                    $p->updated_at ? $p->updated_at->format('Y-m-d H:i:s') : '-',
+                    \App\Filament\Resources\ProductResource::formatPriceDisplay($p->selling_price),
                 ];
             }
             $this->table($partHeaders, $partRows);

@@ -148,4 +148,81 @@ class DeliveryOrderCustomerAndReferenceTest extends TestCase
         $response->assertSee('FS1242');
         $response->assertSee('Stok: 50 PCS');
     }
+
+    public function test_delivery_order_displays_other_warehouse_stock_and_auto_switches_when_first_item_is_in_anekarasa(): void
+    {
+        $gar = Warehouse::firstOrCreate(
+            ['code' => 'GAR'],
+            ['name' => 'GUDANG ANEKARASA', 'is_active' => true]
+        );
+
+        $fs36231 = Part::create([
+            'part_number' => 'FS36231',
+            'name' => 'Fuel Water Separator Filter FS36231',
+            'brand_id' => $this->brand->id,
+            'is_active' => true,
+            'unit' => 'PCS',
+            'bin_location' => 'Gudang Anekarasa',
+        ]);
+
+        // Stok FS36231 adanya di Gudang Anekarasa (250 PCS), sedangkan di GMA = 0 PCS
+        StockBalance::create([
+            'warehouse_id' => $gar->id,
+            'part_id' => $fs36231->id,
+            'qty_on_hand' => 250,
+        ]);
+
+        // 1. Halaman Create DO default Gudang Asal = GMA, tetapi dropdown harus tetap menginformasikan stok tersedia di Gudang Anekarasa
+        $response = $this->get(DeliveryOrderResource::getUrl('create'));
+        $response->assertSuccessful();
+        $response->assertSee('Tersedia di Gudang Anekarasa: 250 PCS');
+
+        // 2. Simulasikan memilih produk FS36231 pada dropdown item pertama (seperti interaksi user di browser)
+        $component = \Livewire\Livewire::test(\App\Filament\Resources\DeliveryOrderResource\Pages\CreateDeliveryOrder::class)
+            ->assertSuccessful();
+
+        $firstUuid = array_key_first($component->instance()->data['items'] ?? []);
+        $this->assertNotNull($firstUuid);
+
+        $component
+            ->set('data.contact_id', $this->customer->id)
+            ->set("data.items.{$firstUuid}.part_id", $fs36231->id)
+            ->set("data.items.{$firstUuid}.qty", 10);
+
+        // Karena item pertama hanya tersedia di GAR, warehouse_id otomatis pindah ke GAR dan available_stock terisi 250
+        $state = $component->instance()->data;
+        $firstItem = $state['items'][$firstUuid] ?? [];
+        $this->assertEquals($gar->id, $state['warehouse_id']);
+        $this->assertEquals(250, (int) ($firstItem['available_stock'] ?? 0));
+
+        // 3. Simpan Surat Jalan dan verifikasi stok terpotong di GAR & tercatat di StockLedger
+        $component->call('create')->assertHasNoFormErrors();
+
+        $this->assertEquals(240, StockBalance::where('warehouse_id', $gar->id)->where('part_id', $fs36231->id)->value('qty_on_hand'));
+        $this->assertDatabaseHas('stock_ledgers', [
+            'warehouse_id' => $gar->id,
+            'part_id' => $fs36231->id,
+            'reference_type' => 'DELIVERY_ORDER',
+            'qty_change' => -10,
+            'balance_before' => 250,
+            'balance_after' => 240,
+        ]);
+
+        // 4. Verifikasi perubahan Gudang Asal secara manual pada item yang sudah dipilih juga memperbarui available_stock
+        $component2 = \Livewire\Livewire::test(\App\Filament\Resources\DeliveryOrderResource\Pages\CreateDeliveryOrder::class)
+            ->assertSuccessful();
+
+        $uuid2 = array_key_first($component2->instance()->data['items'] ?? []);
+        $component2
+            ->set('data.warehouse_id', $this->warehouse->id)
+            ->set("data.items.{$uuid2}.part_id", $this->part->id);
+
+        $firstItem2 = $component2->instance()->data['items'][$uuid2] ?? [];
+        $this->assertEquals(50, (int) ($firstItem2['available_stock'] ?? 0));
+
+        // Pindahkan Gudang Asal ke GAR (di mana $this->part stoknya 0) -> Sisa Stok harus langsung berubah jadi 0
+        $component2->set('data.warehouse_id', $gar->id);
+        $firstItemAfterSwitch = $component2->instance()->data['items'][$uuid2] ?? [];
+        $this->assertEquals(0, (int) ($firstItemAfterSwitch['available_stock'] ?? -1));
+    }
 }

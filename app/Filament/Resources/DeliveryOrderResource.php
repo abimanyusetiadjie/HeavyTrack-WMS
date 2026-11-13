@@ -117,8 +117,25 @@ class DeliveryOrderResource extends Resource
                             ->label('Gudang Asal')
                             ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('id'))
                             ->default(fn () => \App\Models\Warehouse::where('code', 'GMA')->value('id') ?? \App\Models\Warehouse::where('name', 'like', '%MITRA ABADI%')->value('id') ?? \App\Models\Warehouse::value('id'))
+                            ->selectablePlaceholder(false)
                             ->required()
-                            ->reactive()
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $get, callable $set) {
+                                $items = $get('items') ?? [];
+                                if (! is_array($items) || empty($items)) {
+                                    return;
+                                }
+
+                                foreach ($items as $uuid => $item) {
+                                    $partId = $item['part_id'] ?? null;
+                                    if ($partId && $state) {
+                                        $qty = (int) (StockBalance::where('part_id', $partId)->where('warehouse_id', $state)->value('qty_on_hand') ?? 0);
+                                        $set("items.{$uuid}.available_stock", $qty);
+                                    } else {
+                                        $set("items.{$uuid}.available_stock", 0);
+                                    }
+                                }
+                            })
                             ->searchable()
                             ->preload()
                             ->disabled(fn (?DeliveryOrder $record) => in_array($record?->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true)),
@@ -201,14 +218,19 @@ class DeliveryOrderResource extends Resource
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
                                     ->placeholder('Ketik nomor part, nama, atau merek...')
+                                    ->key(fn (callable $get) => 'do_part_id_wh_' . ($get('../../warehouse_id') ?? 'default'))
                                     ->options(function (callable $get) {
                                         $currentPartId = $get('part_id');
                                         $warehouseId = $get('../../warehouse_id') ?? \App\Models\Warehouse::where('code', 'GMA')->value('id') ?? 1;
 
-                                        $parts = Part::with(['brand:id,name', 'stockBalances' => function ($q) use ($warehouseId) {
-                                            if ($warehouseId) {
-                                                $q->where('warehouse_id', $warehouseId);
-                                            }
+                                        $warehouses = \App\Models\Warehouse::where('is_active', true)->orderBy('id')->get()->keyBy('id');
+                                        $selectedWarehouse = $warehouses->get($warehouseId);
+                                        $selectedWhShort = $selectedWarehouse
+                                            ? (str_contains(strtoupper($selectedWarehouse->name), 'ANEKARASA') ? 'Anekarasa' : 'Mitra Abadi')
+                                            : 'Gudang Ini';
+
+                                        $parts = Part::with(['brand:id,name', 'stockBalances' => function ($q) use ($warehouses) {
+                                            $q->whereIn('warehouse_id', $warehouses->keys());
                                         }])
                                         ->where(function (Builder $query) use ($currentPartId) {
                                             $query->where('is_active', true);
@@ -223,9 +245,31 @@ class DeliveryOrderResource extends Resource
                                         $grouped = [];
                                         foreach ($parts as $p) {
                                             $brandName = mb_strtoupper($p->brand?->name ?? 'LAIN-LAIN', 'UTF-8');
-                                            $stockQty = $warehouseId ? (int) $p->stockBalances->where('warehouse_id', $warehouseId)->sum('qty_on_hand') : (int) $p->stockBalances->sum('qty_on_hand');
+                                            $stockQty = $warehouseId ? (int) $p->stockBalances->where('warehouse_id', $warehouseId)->sum('qty_on_hand') : 0;
                                             $unit = $p->unit ?? 'PCS';
-                                            $stockBadge = $stockQty > 0 ? "Stok: {$stockQty} {$unit}" : "Stok: 0 (KOSONG)";
+
+                                            $otherInfos = [];
+                                            foreach ($p->stockBalances as $sb) {
+                                                if ((int) $sb->warehouse_id !== (int) $warehouseId && (int) $sb->qty_on_hand > 0) {
+                                                    $whObj = $warehouses->get($sb->warehouse_id);
+                                                    $otherShort = $whObj
+                                                        ? (str_contains(strtoupper($whObj->name), 'ANEKARASA') ? 'Gudang Anekarasa' : 'Gudang Mitra Abadi')
+                                                        : "Gudang #{$sb->warehouse_id}";
+                                                    $otherInfos[] = "{$otherShort}: {$sb->qty_on_hand} {$unit}";
+                                                }
+                                            }
+
+                                            if ($stockQty > 0) {
+                                                $stockBadge = "Stok: {$stockQty} {$unit}";
+                                                if (! empty($otherInfos)) {
+                                                    $stockBadge .= ' | ' . implode(', ', $otherInfos);
+                                                }
+                                            } elseif (! empty($otherInfos)) {
+                                                $stockBadge = "Stok {$selectedWhShort}: 0 | Tersedia di " . implode(', ', $otherInfos);
+                                            } else {
+                                                $stockBadge = "Stok: 0 (KOSONG)";
+                                            }
+
                                             $brandLabel = $p->brand?->name ? " [{$p->brand->name}]" : '';
                                             $label = "{$p->part_number} — {$p->name}{$brandLabel} [{$stockBadge}]";
                                             if (! $p->is_active) {
@@ -237,21 +281,74 @@ class DeliveryOrderResource extends Resource
                                         return $grouped;
                                     })
                                     ->required()
-                                    ->reactive()
+                                    ->live()
                                     ->searchable()
                                     ->preload()
-                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                        $warehouseId = $get('../../warehouse_id');
-                                        if ($state && $warehouseId) {
-                                            $stock = StockBalance::where('part_id', $state)->where('warehouse_id', $warehouseId)->first();
-                                            $set('available_stock', $stock ? $stock->qty_on_hand : 0);
-                                            $part = Part::withTrashed()->find($state);
-                                            if ($part) {
-                                                $set('unit', mb_strtoupper($part->unit ?? 'PCS', 'UTF-8'));
-                                            }
-                                        } else {
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get, ?DeliveryOrder $record) {
+                                        if (! $state) {
                                             $set('available_stock', 0);
+                                            return;
                                         }
+
+                                        $part = Part::withTrashed()->find($state);
+                                        if ($part) {
+                                            $set('unit', mb_strtoupper($part->unit ?? 'PCS', 'UTF-8'));
+                                        }
+
+                                        $warehouseId = $get('../../warehouse_id') ?? \App\Models\Warehouse::where('code', 'GMA')->value('id');
+                                        if (! $warehouseId) {
+                                            $set('available_stock', 0);
+                                            return;
+                                        }
+
+                                        $stock = StockBalance::where('part_id', $state)->where('warehouse_id', $warehouseId)->first();
+                                        $qtyInSelected = $stock ? (int) $stock->qty_on_hand : 0;
+
+                                        if ($qtyInSelected > 0) {
+                                            $set('available_stock', $qtyInSelected);
+                                            return;
+                                        }
+
+                                        // Jika stok 0 di gudang terpilih, periksa gudang aktif lainnya
+                                        $otherBalance = StockBalance::with('warehouse')
+                                            ->where('part_id', $state)
+                                            ->where('warehouse_id', '!=', $warehouseId)
+                                            ->where('qty_on_hand', '>', 0)
+                                            ->whereHas('warehouse', fn ($q) => $q->where('is_active', true))
+                                            ->orderByDesc('qty_on_hand')
+                                            ->first();
+
+                                        if ($otherBalance && $otherBalance->warehouse) {
+                                            $items = $get('../../items') ?? [];
+                                            $isLocked = $record && in_array($record->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true);
+                                            $unit = $part?->unit ?? 'PCS';
+
+                                            // Jika baru memilih 1 item dan form tidak terkunci, otomatis arahkan Gudang Asal ke gudang yang punya stok
+                                            if (! $isLocked && is_array($items) && count($items) <= 1) {
+                                                $set('../../warehouse_id', $otherBalance->warehouse_id);
+                                                $set('available_stock', (int) $otherBalance->qty_on_hand);
+
+                                                Notification::make()
+                                                    ->title('Gudang Asal Otomatis Disesuaikan')
+                                                    ->body("Stok {$part?->part_number} berada di {$otherBalance->warehouse->name} ({$otherBalance->qty_on_hand} {$unit}). Gudang Asal Surat Jalan otomatis diarahkan ke {$otherBalance->warehouse->name}.")
+                                                    ->info()
+                                                    ->send();
+
+                                                return;
+                                            }
+
+                                            $set('available_stock', 0);
+                                            Notification::make()
+                                                ->title('Stok Berada di Gudang Berbeda')
+                                                ->body("Stok {$part?->part_number} di gudang terpilih adalah 0 {$unit}, tetapi tersedia {$otherBalance->qty_on_hand} {$unit} di {$otherBalance->warehouse->name}. Ubah Gudang Asal di atas jika dikirim dari {$otherBalance->warehouse->name}.")
+                                                ->warning()
+                                                ->persistent()
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        $set('available_stock', 0);
                                     })
                                     ->columnSpan(['default' => 12, 'md' => 5]),
                                     
@@ -260,6 +357,27 @@ class DeliveryOrderResource extends Resource
                                     ->disabled()
                                     ->dehydrated(false)
                                     ->numeric()
+                                    ->helperText(function (callable $get) {
+                                        $partId = $get('part_id');
+                                        $warehouseId = $get('../../warehouse_id');
+                                        if (! $partId || ! $warehouseId) {
+                                            return null;
+                                        }
+
+                                        $selectedQty = (int) (StockBalance::where('part_id', $partId)->where('warehouse_id', $warehouseId)->value('qty_on_hand') ?? 0);
+                                        $others = StockBalance::with('warehouse')
+                                            ->where('part_id', $partId)
+                                            ->where('warehouse_id', '!=', $warehouseId)
+                                            ->where('qty_on_hand', '>', 0)
+                                            ->get();
+
+                                        if ($selectedQty === 0 && $others->isNotEmpty()) {
+                                            $info = $others->map(fn ($b) => ($b->warehouse?->name ?? 'Gudang lain') . ": {$b->qty_on_hand}")->implode(', ');
+                                            return "Ada di {$info}";
+                                        }
+
+                                        return null;
+                                    })
                                     ->afterStateHydrated(function (Forms\Components\TextInput $component, callable $get) {
                                         $partId = $get('part_id');
                                         $warehouseId = $get('../../warehouse_id');

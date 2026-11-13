@@ -104,7 +104,9 @@ class GoodsReceiptResource extends Resource
                             ->label('Gudang Tujuan')
                             ->relationship('warehouse', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('id'))
                             ->default(fn () => \App\Models\Warehouse::where('code', 'GMA')->value('id') ?? \App\Models\Warehouse::where('name', 'like', '%MITRA ABADI%')->value('id') ?? \App\Models\Warehouse::value('id'))
+                            ->selectablePlaceholder(false)
                             ->required()
+                            ->live()
                             ->searchable()
                             ->preload()
                             ->disabled(fn (?GoodsReceipt $record) => $record?->status === 'RECEIVED'),
@@ -161,6 +163,7 @@ class GoodsReceiptResource extends Resource
                                 Forms\Components\Select::make('part_id')
                                     ->label('Pilih Produk / Sparepart')
                                     ->placeholder('Ketik nomor part, nama, atau merek...')
+                                    ->key(fn (callable $get) => 'gr_part_id_wh_' . ($get('../../warehouse_id') ?? 'default'))
                                     ->options(function (callable $get) {
                                         $currentPartId = $get('part_id');
                                         $warehouseId = $get('../../warehouse_id') ?? \App\Models\Warehouse::where('code', 'GMA')->value('id') ?? 1;
