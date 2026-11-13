@@ -226,6 +226,41 @@ class AuditDatabaseCommand extends Command
         }
 
         $this->newLine();
+        $this->info("7B. AUDIT FAKTUR PENJUALAN TANPA SURAT JALAN (KONFIRMASI STATUS STOK):");
+        $standaloneInvoices = Invoice::with(['contact', 'items.part.stockBalances.warehouse'])
+            ->where('status', '!=', 'VOID')
+            ->where(function ($q) {
+                $q->whereNull('delivery_order_id')
+                  ->orWhereDoesntHave('deliveryOrder');
+            })
+            ->orderBy('id')
+            ->get();
+
+        if ($standaloneInvoices->isEmpty()) {
+            $this->info("   [OKE] Seluruh Faktur aktif telah terhubung ke Surat Jalan (stok tercatat resmi).");
+        } else {
+            $this->warn("   Ditemukan " . $standaloneInvoices->count() . " Faktur TANPA Surat Jalan (stok gudang & buku mutasi BELUM berkurang untuk faktur ini):");
+            $invAuditRows = [];
+            foreach ($standaloneInvoices as $inv) {
+                $itemSummary = $inv->items->map(function ($it) {
+                    $pn = $it->part?->part_number ?? $it->part_number_snapshot ?? ('Part#' . $it->part_id);
+                    $curStock = $it->part ? (int) $it->part->stockBalances->sum('qty_on_hand') : 0;
+                    return "{$pn} (Qty Faktur: {$it->qty} | Stok Sistem Saat Ini: {$curStock})";
+                })->implode('; ');
+                $invAuditRows[] = [
+                    $inv->invoice_number,
+                    $inv->invoice_date ?? '-',
+                    $inv->contact?->company_name ?? '-',
+                    $inv->status,
+                    $itemSummary ?: '(0 item)',
+                    'BELUM POTONG STOK',
+                ];
+            }
+            $this->table(['No. Faktur', 'Tanggal', 'Pelanggan', 'Status', 'Rincian Item & Stok Sistem', 'Status Stok'], $invAuditRows);
+            $this->line("   Tips: Untuk memotong stok resmi & menerbitkan Surat Jalan, buka menu Daftar Faktur -> klik 'Buat SJ & Potong Stok' pada masing-masing faktur.");
+        }
+
+        $this->newLine();
         $this->info("8. EVALUASI DAN REKOMENDASI QA:");
         if ($trashedDO > 0) {
             $this->warn("   [INFO] Terdapat {$trashedDO} data Surat Jalan yang berstatus 'Soft-Deleted'.");

@@ -467,6 +467,33 @@ class InvoiceResource extends Resource
                 Tables\Columns\TextColumn::make('invoice_number')->label('Nomor Faktur')->searchable(),
                 Tables\Columns\TextColumn::make('invoice_date')->label('Tgl Terbit')->date('d M Y')->sortable(),
                 Tables\Columns\TextColumn::make('contact.company_name')->label('Pelanggan'),
+                Tables\Columns\TextColumn::make('stock_sync_status')
+                    ->label('Surat Jalan & Stok')
+                    ->badge()
+                    ->state(function (Invoice $record): string {
+                        if ($record->status === 'VOID') {
+                            return 'Faktur Batal';
+                        }
+                        if ($record->deliveryOrder) {
+                            $doStatus = in_array($record->deliveryOrder->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true);
+                            return $doStatus
+                                ? "{$record->deliveryOrder->do_number} (Stok Dipotong)"
+                                : "{$record->deliveryOrder->do_number} ({$record->deliveryOrder->status})";
+                        }
+
+                        return 'Tanpa SJ (Stok Belum Dipotong)';
+                    })
+                    ->color(function (Invoice $record): string {
+                        if ($record->status === 'VOID') {
+                            return 'gray';
+                        }
+                        if ($record->deliveryOrder && in_array($record->deliveryOrder->status, ['CONFIRMED', 'ISSUED', 'SHIPPED', 'RECEIVED'], true)) {
+                            return 'success';
+                        }
+
+                        return 'warning';
+                    })
+                    ->url(fn (Invoice $record): ?string => $record->deliveryOrder ? route('filament.admin.resources.delivery-orders.edit', ['record' => $record->deliveryOrder->id]) : null),
                 Tables\Columns\TextColumn::make('grand_total')->label('Total Tagihan')->money('IDR'),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
@@ -483,6 +510,7 @@ class InvoiceResource extends Resource
                 Tables\Filters\TrashedFilter::make()->label('Data Dihapus'),
             ])
             ->actions([
+                self::makeIssueDeliveryOrderAction(\Filament\Actions\Action::make('issueDeliveryOrder')),
                 \Filament\Actions\EditAction::make()->label('Ubah'),
                 
                 \Filament\Actions\Action::make('printFaktur')
@@ -661,6 +689,153 @@ class InvoiceResource extends Resource
         $set('../../subtotal', self::formatMoney($subtotal));
         $set('../../tax_amount', self::formatMoney($tax));
         $set('../../grand_total', self::formatMoney($grandTotal));
+    }
+
+    public static function makeIssueDeliveryOrderAction(\Filament\Actions\Action $action): \Filament\Actions\Action
+    {
+        return $action
+            ->label('Buat SJ & Potong Stok')
+            ->icon('heroicon-o-truck')
+            ->color('warning')
+            ->modalHeading('Terbitkan Surat Jalan & Potong Stok dari Faktur')
+            ->modalDescription('Faktur ini dibuat tanpa Surat Jalan sehingga belum memotong stok gudang. Pilih gudang asal barang untuk membuat Surat Jalan resmi dan memotong stok secara otomatis.')
+            ->form([
+                Forms\Components\Select::make('warehouse_id')
+                    ->label('Gudang Asal Pengiriman')
+                    ->options(fn () => \App\Models\Warehouse::where('is_active', true)->orderBy('id')->pluck('name', 'id'))
+                    ->default(function (Invoice $record) {
+                        $partIds = $record->items()->pluck('part_id')->filter()->toArray();
+                        if (! empty($partIds)) {
+                            $bestWhId = \App\Models\StockBalance::whereIn('part_id', $partIds)
+                                ->where('qty_on_hand', '>', 0)
+                                ->groupBy('warehouse_id')
+                                ->orderByRaw('SUM(qty_on_hand) DESC')
+                                ->value('warehouse_id');
+                            if ($bestWhId) {
+                                return $bestWhId;
+                            }
+                        }
+
+                        return \App\Models\Warehouse::where('code', 'GMA')->value('id')
+                            ?? \App\Models\Warehouse::where('is_active', true)->value('id');
+                    })
+                    ->selectablePlaceholder(false)
+                    ->required(),
+                Forms\Components\DatePicker::make('delivery_date')
+                    ->label('Tanggal Pengiriman')
+                    ->default(fn (Invoice $record) => $record->invoice_date ?? now())
+                    ->required(),
+                Forms\Components\TextInput::make('driver_name')
+                    ->label('Nama Supir (Opsional)')
+                    ->maxLength(100)
+                    ->extraInputAttributes(['style' => 'text-transform: uppercase']),
+                Forms\Components\TextInput::make('vehicle_plate_number')
+                    ->label('Plat Nomor Kendaraan (Opsional)')
+                    ->maxLength(30)
+                    ->extraInputAttributes(['style' => 'text-transform: uppercase']),
+            ])
+            ->visible(fn (Invoice $record): bool => ! $record->deliveryOrder && $record->status !== 'VOID')
+            ->action(function (Invoice $record, array $data): void {
+                try {
+                    $do = self::issueDeliveryOrderFromInvoice($record, $data);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Surat Jalan Diterbitkan & Stok Dipotong')
+                        ->body("Surat Jalan {$do->do_number} berhasil dibuat untuk Faktur {$record->invoice_number}. Saldo stok dan buku mutasi telah terpotong otomatis.")
+                        ->success()
+                        ->persistent()
+                        ->send();
+                } catch (\Throwable $e) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Gagal Menerbitkan Surat Jalan')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->persistent()
+                        ->send();
+                }
+            });
+    }
+
+    public static function issueDeliveryOrderFromInvoice(Invoice $invoice, array $data): DeliveryOrder
+    {
+        if ($invoice->deliveryOrder) {
+            throw new \Exception("Faktur {$invoice->invoice_number} sudah terhubung dengan Surat Jalan.");
+        }
+
+        $invoice->loadMissing('items');
+        if ($invoice->items->isEmpty()) {
+            throw new \Exception("Faktur {$invoice->invoice_number} tidak memiliki rincian barang.");
+        }
+
+        $warehouseId = (int) ($data['warehouse_id'] ?? 0);
+        if ($warehouseId <= 0) {
+            throw new \Exception('Gudang asal pengiriman wajib dipilih.');
+        }
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($invoice, $data, $warehouseId) {
+            // 1. Validasi stok per part terlebih dahulu sebelum membuat DO
+            $qtyByPart = [];
+            foreach ($invoice->items as $item) {
+                if (! $item->part_id || (int) $item->qty <= 0) {
+                    throw new \Exception("Ada baris barang pada faktur yang tidak valid atau belum terhubung ke Master Produk.");
+                }
+                $qtyByPart[$item->part_id] = ($qtyByPart[$item->part_id] ?? 0) + (int) $item->qty;
+            }
+
+            foreach ($qtyByPart as $partId => $needed) {
+                $available = (int) (\App\Models\StockBalance::where('warehouse_id', $warehouseId)
+                    ->where('part_id', $partId)
+                    ->value('qty_on_hand') ?? 0);
+
+                if ($available < $needed) {
+                    $part = Part::withTrashed()->find($partId);
+                    $partName = $part ? "{$part->part_number} ({$part->name})" : "Part ID #{$partId}";
+                    throw new \Exception("Stok fisik tidak mencukupi untuk {$partName} di gudang terpilih. Tersedia: {$available}, dibutuhkan sesuai faktur: {$needed}.");
+                }
+            }
+
+            // 2. Generate nomor Surat Jalan berikutnya
+            $prefix = 'SJ/' . date('Ym', strtotime((string) ($data['delivery_date'] ?? now()))) . '/';
+            $latest = DeliveryOrder::withTrashed()
+                ->where('do_number', 'like', $prefix . '%')
+                ->orderByDesc('do_number')
+                ->value('do_number');
+
+            $nextSeq = 1;
+            if ($latest && preg_match('/(\d+)$/', $latest, $matches)) {
+                $nextSeq = (int) $matches[1] + 1;
+            }
+
+            $doNumber = $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
+
+            $do = DeliveryOrder::create([
+                'do_number' => $doNumber,
+                'warehouse_id' => $warehouseId,
+                'contact_id' => $invoice->contact_id,
+                'delivery_date' => $data['delivery_date'] ?? $invoice->invoice_date ?? now()->toDateString(),
+                'driver_name' => $data['driver_name'] ?? null,
+                'vehicle_plate_number' => $data['vehicle_plate_number'] ?? null,
+                'notes' => 'DITERBITKAN DARI FAKTUR ' . $invoice->invoice_number,
+                'status' => 'CONFIRMED',
+                'created_by' => auth()->id() ?? $invoice->created_by ?? 1,
+            ]);
+
+            foreach ($invoice->items as $item) {
+                \App\Models\DeliveryOrderItem::create([
+                    'delivery_order_id' => $do->id,
+                    'part_id' => $item->part_id,
+                    'qty' => (int) $item->qty,
+                    'unit' => mb_strtoupper($item->unit ?: 'PCS', 'UTF-8'),
+                ]);
+            }
+
+            $invoice->delivery_order_id = $do->id;
+            $invoice->saveQuietly();
+
+            app(\App\Services\InventoryService::class)->syncDeliveryOrderStock($do);
+
+            return $do;
+        });
     }
 
     public static function getPages(): array

@@ -162,4 +162,88 @@ class InvoiceTest extends TestCase
         $this->assertStringContainsString('TRF-BCA-889900', $receiptView);
         $this->assertStringContainsString('PEMBAYARAN LUNAS TAGIHAN FILTER ALAT BERAT', $receiptView);
     }
+
+    public function test_standalone_invoice_without_delivery_order_does_not_deduct_stock_until_do_is_issued(): void
+    {
+        $user = User::factory()->create(['email' => 'owner_inv_stock@heavytrack.com']);
+        $user->syncRoles([\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Owner'])]);
+        $this->actingAs($user);
+
+        $gma = Warehouse::firstOrCreate(['code' => 'GMA'], ['name' => 'GUDANG MITRA ABADI', 'is_active' => true]);
+        $contact = Contact::create(['company_name' => 'ANUGRAH JAYA TRACTOR', 'type' => 'CUSTOMER']);
+        $brand = Brand::firstOrCreate(['name' => 'Fleetguard'], ['code' => 'FLT']);
+        $cat = Category::firstOrCreate(['name' => 'Fuel Filter'], ['code' => 'FF']);
+
+        $part = Part::create([
+            'part_number' => 'FS36231-TEST',
+            'name' => 'Filter FS36231 Test',
+            'brand_id' => $brand->id,
+            'category_id' => $cat->id,
+            'selling_price' => 100000,
+        ]);
+
+        app(\App\Services\InventoryService::class)->addStock($gma->id, $part->id, 100, 'INITIAL_STOCK', $part->id, 'INIT/FS', 'Saldo Awal');
+
+        // 1. Buat Faktur langsung tanpa Surat Jalan
+        $invoice = \App\Models\Invoice::create([
+            'invoice_number' => 'INV/202611/0006',
+            'contact_id' => $contact->id,
+            'invoice_date' => '2026-11-13',
+            'due_date' => '2026-12-13',
+            'status' => 'UNPAID',
+            'subtotal' => 2000000,
+            'grand_total' => 2000000,
+            'created_by' => $user->id,
+        ]);
+
+        \App\Models\InvoiceItem::create([
+            'invoice_id' => $invoice->id,
+            'part_id' => $part->id,
+            'part_number_snapshot' => 'FS36231-TEST',
+            'part_name_snapshot' => 'Filter FS36231 Test',
+            'qty' => 20,
+            'unit' => 'PCS',
+            'unit_price' => 100000,
+            'total_price' => 2000000,
+        ]);
+
+        // Konfirmasi: stok TIDAK berkurang otomatis jika faktur dibuat tanpa Surat Jalan
+        $this->assertEquals(100, \App\Models\StockBalance::where('warehouse_id', $gma->id)->where('part_id', $part->id)->value('qty_on_hand'));
+        $this->assertDatabaseMissing('stock_ledgers', [
+            'reference_type' => 'DELIVERY_ORDER',
+            'part_id' => $part->id,
+        ]);
+
+        // Verifikasi Daftar Faktur menampilkan status 'Tanpa SJ (Stok Belum Dipotong)'
+        $this->get('/admin/invoices')
+            ->assertSuccessful()
+            ->assertSee('INV/202611/0006')
+            ->assertSee('Tanpa SJ (Stok Belum Dipotong)');
+
+        // 2. Terbitkan Surat Jalan & Potong Stok dari Faktur tersebut
+        $do = InvoiceResource::issueDeliveryOrderFromInvoice($invoice->fresh(), [
+            'warehouse_id' => $gma->id,
+            'delivery_date' => '2026-11-13',
+        ]);
+
+        $this->assertEquals('CONFIRMED', $do->status);
+        $this->assertEquals($do->id, $invoice->fresh()->delivery_order_id);
+
+        // Sekarang stok fisik berkurang (100 - 20 = 80) dan tercatat di StockLedger
+        $this->assertEquals(80, \App\Models\StockBalance::where('warehouse_id', $gma->id)->where('part_id', $part->id)->value('qty_on_hand'));
+        $this->assertDatabaseHas('stock_ledgers', [
+            'warehouse_id' => $gma->id,
+            'part_id' => $part->id,
+            'reference_type' => 'DELIVERY_ORDER',
+            'reference_id' => $do->id,
+            'qty_change' => -20,
+            'balance_before' => 100,
+            'balance_after' => 80,
+        ]);
+
+        // Daftar Faktur sekarang menampilkan badge 'Stok Dipotong'
+        $this->get('/admin/invoices')
+            ->assertSuccessful()
+            ->assertSee($do->do_number . ' (Stok Dipotong)');
+    }
 }
