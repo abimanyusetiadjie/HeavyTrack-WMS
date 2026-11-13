@@ -347,7 +347,16 @@ class ProductResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload()
-                            ->default(fn () => \App\Models\Warehouse::where('code', 'GMA')->value('id') ?? \App\Models\Warehouse::where('name', 'like', '%MITRA ABADI%')->value('id') ?? \App\Models\Warehouse::first()?->id),
+                            ->default(function (Part $record) {
+                                $activeBalance = $record->stockBalances()->where('qty_on_hand', '>', 0)->first();
+                                if ($activeBalance) {
+                                    return $activeBalance->warehouse_id;
+                                }
+                                $isAnekarasa = str_contains(strtoupper((string) $record->bin_location), 'ANEKARASA');
+                                return \App\Models\Warehouse::where('code', $isAnekarasa ? 'GAR' : 'GMA')->value('id')
+                                    ?? \App\Models\Warehouse::where('name', 'like', $isAnekarasa ? '%ANEKARASA%' : '%MITRA ABADI%')->value('id')
+                                    ?? \App\Models\Warehouse::first()?->id;
+                            }),
                         Forms\Components\Select::make('type')
                             ->label('Tipe Penyesuaian')
                             ->options([

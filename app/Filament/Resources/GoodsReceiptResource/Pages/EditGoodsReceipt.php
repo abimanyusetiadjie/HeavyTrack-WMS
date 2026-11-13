@@ -48,6 +48,11 @@ class EditGoodsReceipt extends EditRecord
         }
     }
 
+    protected function afterSave(): void
+    {
+        app(\App\Services\InventoryService::class)->syncGoodsReceiptStock($this->record);
+    }
+
     protected function getHeaderActions(): array
     {
         return [

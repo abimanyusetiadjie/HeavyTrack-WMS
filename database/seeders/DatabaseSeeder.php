@@ -109,17 +109,17 @@ class DatabaseSeeder extends Seeder
         if (StockLedger::where('reference_type', 'INITIAL_STOCK')->count() === 0) {
             $parts = Part::all();
             foreach ($parts as $part) {
-                $existing = StockBalance::where('warehouse_id', $wPusat->id)->where('part_id', $part->id)->first();
+                $existing = StockBalance::where('warehouse_id', $wMitraAbadi->id)->where('part_id', $part->id)->first();
                 if (!$existing) {
                     StockBalance::create([
-                        'warehouse_id' => $wPusat->id,
+                        'warehouse_id' => $wMitraAbadi->id,
                         'part_id' => $part->id,
                         'qty_on_hand' => 50, // Saldo stok awal siap pakai
                         'qty_reserved' => 0,
                     ]);
 
                     StockLedger::create([
-                        'warehouse_id' => $wPusat->id,
+                        'warehouse_id' => $wMitraAbadi->id,
                         'part_id' => $part->id,
                         'reference_type' => 'INITIAL_STOCK',
                         'reference_id' => $part->id,

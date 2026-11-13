@@ -131,12 +131,12 @@ class WarehouseResource extends Resource
                 Tables\Columns\TextColumn::make('total_physical_stock')
                     ->label('Total Stok Fisik')
                     ->state(function (Warehouse $record): string {
-                        $total = (int) $record->stockBalances()->sum('qty_on_hand');
+                        $total = (int) $record->activeStockBalances()->sum('qty_on_hand');
                         return number_format($total, 0, ',', '.') . ' PCS';
                     })
                     ->badge()
                     ->color(function (Warehouse $record): string {
-                        $total = (int) $record->stockBalances()->sum('qty_on_hand');
+                        $total = (int) $record->activeStockBalances()->sum('qty_on_hand');
                         return $total > 0 ? 'info' : 'gray';
                     }),
 

@@ -230,4 +230,128 @@ class StockSynchronizationTest extends TestCase
             'INITIAL_STOCK' => 'Saldo Awal',
         ], $options);
     }
+
+    public function test_reconciliation_syncs_unlogged_delivery_order_items_and_running_balances(): void
+    {
+        $inventoryService = app(InventoryService::class);
+        $inventoryService->addStock($this->warehouse->id, $this->part->id, 100, 'INITIAL_STOCK', $this->part->id, 'INIT/100', 'Saldo Awal');
+
+        // Simulasikan Surat Jalan CONFIRMED yang item-nya ditambahkan saat edit (sebelum fix) tanpa tercatat di StockLedger
+        $do = DeliveryOrder::create([
+            'do_number' => 'SJ/202611/0099',
+            'delivery_date' => now(),
+            'warehouse_id' => $this->warehouse->id,
+            'contact_id' => $this->customer->id,
+            'status' => 'CONFIRMED',
+            'created_by' => $this->user->id,
+        ]);
+
+        DeliveryOrderItem::create([
+            'delivery_order_id' => $do->id,
+            'part_id' => $this->part->id,
+            'qty' => 25,
+            'unit' => 'PCS',
+        ]);
+
+        // Pastikan sebelum rekonsiliasi belum ada ledger untuk SJ/202611/0099
+        $this->assertDatabaseMissing('stock_ledgers', [
+            'reference_type' => 'DELIVERY_ORDER',
+            'reference_id' => $do->id,
+        ]);
+
+        $result = $inventoryService->reconcileStock();
+        $this->assertGreaterThanOrEqual(1, $result['discrepancies']);
+
+        // Setelah rekonsiliasi:
+        // 1. StockBalance otomatis terpotong 25 (100 - 25 = 75)
+        $balance = StockBalance::where('warehouse_id', $this->warehouse->id)->where('part_id', $this->part->id)->first();
+        $this->assertEquals(75, $balance->qty_on_hand);
+
+        // 2. StockLedger memiliki catatan DELIVERY_ORDER -25 dengan balance_before=100 dan balance_after=75
+        $this->assertDatabaseHas('stock_ledgers', [
+            'warehouse_id' => $this->warehouse->id,
+            'part_id' => $this->part->id,
+            'reference_type' => 'DELIVERY_ORDER',
+            'reference_id' => $do->id,
+            'qty_change' => -25,
+            'balance_before' => 100,
+            'balance_after' => 75,
+        ]);
+    }
+
+    public function test_reconciliation_repairs_asymmetric_warehouse_transfer_ledgers_and_broken_running_chain(): void
+    {
+        $gma = Warehouse::firstOrCreate(['code' => 'GMA'], ['name' => 'GUDANG MITRA ABADI']);
+        $gar = Warehouse::firstOrCreate(['code' => 'GAR'], ['name' => 'GUDANG ANEKARASA']);
+
+        $this->part->update(['bin_location' => 'Gudang Mitra Abadi']);
+
+        // Simulasikan bug lama:
+        // 1. Awal di GMA +80
+        // 2. Pindah ke GAR tanpa ledger
+        // 3. Pindah balik dari GAR ke GMA dengan TRF/ (-80 di GAR, +80 di GMA)
+        StockBalance::updateOrCreate(
+            ['warehouse_id' => $gma->id, 'part_id' => $this->part->id],
+            ['qty_on_hand' => 80]
+        );
+        StockBalance::updateOrCreate(
+            ['warehouse_id' => $gar->id, 'part_id' => $this->part->id],
+            ['qty_on_hand' => 0]
+        );
+
+        StockLedger::create([
+            'warehouse_id' => $gma->id,
+            'part_id' => $this->part->id,
+            'reference_type' => 'INITIAL_STOCK',
+            'reference_id' => $this->part->id,
+            'reference_number' => 'INIT/80',
+            'qty_change' => 80,
+            'balance_before' => 0,
+            'balance_after' => 80,
+            'created_by' => $this->user->id,
+            'created_at' => now()->subHours(2),
+        ]);
+
+        StockLedger::create([
+            'warehouse_id' => $gar->id,
+            'part_id' => $this->part->id,
+            'reference_type' => 'MANUAL_ADJUSTMENT',
+            'reference_id' => $this->part->id,
+            'reference_number' => 'TRF/20261103/' . $this->part->id,
+            'qty_change' => -80,
+            'balance_before' => 80,
+            'balance_after' => 0,
+            'created_by' => $this->user->id,
+            'created_at' => now()->subHour(),
+        ]);
+
+        StockLedger::create([
+            'warehouse_id' => $gma->id,
+            'part_id' => $this->part->id,
+            'reference_type' => 'MANUAL_ADJUSTMENT',
+            'reference_id' => $this->part->id,
+            'reference_number' => 'TRF/20261103/' . $this->part->id,
+            'qty_change' => 80,
+            'balance_before' => 0,
+            'balance_after' => 80,
+            'created_by' => $this->user->id,
+            'created_at' => now()->subHour(),
+        ]);
+
+        $inventoryService = app(InventoryService::class);
+        $inventoryService->reconcileStock();
+
+        // Verifikasi setelah rekonsiliasi:
+        // GMA tetap 80 (tidak tergandakan menjadi 160!) dan akumulasi ledger GMA = 80
+        $this->assertEquals(80, StockBalance::where('warehouse_id', $gma->id)->where('part_id', $this->part->id)->value('qty_on_hand'));
+        $this->assertEquals(80, (int) StockLedger::where('warehouse_id', $gma->id)->where('part_id', $this->part->id)->sum('qty_change'));
+
+        // GAR tetap 0 dan akumulasi ledger GAR = 0 (tidak minus -80!)
+        $this->assertEquals(0, StockBalance::where('warehouse_id', $gar->id)->where('part_id', $this->part->id)->value('qty_on_hand'));
+        $this->assertEquals(0, (int) StockLedger::where('warehouse_id', $gar->id)->where('part_id', $this->part->id)->sum('qty_change'));
+
+        // Audit kedua harus menghasilkan 0 discrepancy (100% sinkron)
+        $recheck = $inventoryService->reconcileStock();
+        $this->assertEquals(0, $recheck['discrepancies']);
+    }
 }

@@ -198,18 +198,50 @@ class AuditDatabaseCommand extends Command
         }
 
         $this->newLine();
-        $this->info("7. EVALUASI DAN REKOMENDASI QA:");
+        $this->info("7. AUDIT KESELARASAN STOK WEBSITE VS HISTORI DATABASE (stock_balances vs stock_ledgers):");
+        $balances = \App\Models\StockBalance::with(['part' => fn ($q) => $q->withTrashed(), 'warehouse'])->get();
+        $unsyncedRows = [];
+        foreach ($balances as $b) {
+            $ledgerSum = (int) \App\Models\StockLedger::where('warehouse_id', $b->warehouse_id)
+                ->where('part_id', $b->part_id)
+                ->sum('qty_change');
+            if ((int) $b->qty_on_hand !== $ledgerSum) {
+                $unsyncedRows[] = [
+                    $b->warehouse?->name ?? ('Gudang #' . $b->warehouse_id),
+                    $b->part?->part_number ?? ('Part #' . $b->part_id),
+                    $b->qty_on_hand,
+                    $ledgerSum,
+                    (int) $b->qty_on_hand - $ledgerSum,
+                ];
+            }
+        }
+        if (empty($unsyncedRows)) {
+            $this->info("   [SINKRON 100%] Seluruh saldo stok fisik di website cocok 100% dengan histori mutasi database (0 selisih).");
+        } else {
+            $this->warn("   [PERINGATAN] Ditemukan " . count($unsyncedRows) . " data stok yang belum sinkron (jalankan: php artisan stock:sync):");
+            $this->table(['Gudang', 'Nomor Part', 'Stok Website', 'Total Mutasi DB', 'Selisih'], $unsyncedRows);
+        }
+
+        $this->newLine();
+        $this->info("8. EVALUASI DAN REKOMENDASI QA:");
         if ($trashedDO > 0) {
             $this->warn("   [INFO] Terdapat {$trashedDO} data Surat Jalan yang berstatus 'Soft-Deleted'.");
             $this->line("   Pada Filament, data ini otomatis disembunyikan oleh filter.");
             $this->line("   Untuk melihatnya di web: Buka menu Surat Jalan -> Buka panel Filter -> Pilih 'Data Dihapus' -> 'Dengan Data Dihapus'.");
         }
 
-        if (count($foundSqlite) > 1) {
-            $this->warn("   [PERINGATAN] Ditemukan lebih dari 1 file SQLite di server!");
-            $this->line("   Pastikan di file .env menggunakan path absolut: DB_DATABASE=/var/www/heavytrack-wms/database/database.sqlite");
+        if ($driver === 'mysql') {
+            $this->info("   [OKE] Sistem menggunakan database MySQL ({$dbName}) 100% secara terpusat.");
+            if (count($foundSqlite) > 0) {
+                $this->warn("   [PERINGATAN] Masih ditemukan " . count($foundSqlite) . " file SQLite sisa di server yang sebaiknya dihapus.");
+            }
         } else {
-            $this->info("   [OKE] Lokasi database SQLite tunggal dan konsisten.");
+            if (count($foundSqlite) > 1) {
+                $this->warn("   [PERINGATAN] Ditemukan lebih dari 1 file SQLite di server!");
+                $this->line("   Pastikan di file .env menggunakan path absolut: DB_DATABASE=/var/www/heavytrack-wms/database/database.sqlite");
+            } else {
+                $this->info("   [OKE] Lokasi database SQLite tunggal dan konsisten.");
+            }
         }
 
         $this->info("================================================================================");

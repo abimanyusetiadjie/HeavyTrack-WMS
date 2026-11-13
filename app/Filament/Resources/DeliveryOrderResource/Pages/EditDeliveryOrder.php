@@ -133,36 +133,46 @@ class EditDeliveryOrder extends EditRecord
     protected function beforeSave(): void
     {
         $newStatus = $this->data['status'] ?? $this->record->status;
-        $oldStatus = $this->record->status;
         $triggerStatuses = ['ISSUED', 'CONFIRMED', 'SHIPPED', 'RECEIVED'];
 
-        // Jika mengaktifkan kembali surat jalan dari status VOID/DRAFT -> pastikan stok tersedia
-        if (!in_array($oldStatus, $triggerStatuses, true) && in_array($newStatus, $triggerStatuses, true)) {
-            $warehouseId = $this->data['warehouse_id'] ?? $this->record->warehouse_id;
+        // Jika surat jalan berstatus aktif, pastikan stok mencukupi untuk seluruh item maupun penambahan kuantitas item
+        if (in_array($newStatus, $triggerStatuses, true)) {
+            $warehouseId = (int) ($this->data['warehouse_id'] ?? $this->record->warehouse_id);
             $items = $this->data['items'] ?? $this->record->items->toArray();
 
             $qtyByPart = [];
             foreach ($items as $item) {
-                $partId = $item['part_id'] ?? null;
+                $partId = (int) ($item['part_id'] ?? 0);
                 $qty = (int) ($item['qty'] ?? 0);
-                if ($partId && $qty > 0) {
+                if ($partId > 0 && $qty > 0) {
                     $qtyByPart[$partId] = ($qtyByPart[$partId] ?? 0) + $qty;
                 }
             }
 
             foreach ($qtyByPart as $partId => $totalNeeded) {
+                $alreadyDeducted = abs((int) \App\Models\StockLedger::where('warehouse_id', $warehouseId)
+                    ->where('part_id', $partId)
+                    ->where('reference_id', $this->record->id)
+                    ->whereIn('reference_type', ['DELIVERY_ORDER', 'DELIVERY_ORDER_VOID'])
+                    ->sum('qty_change'));
+
+                $additionalNeeded = $totalNeeded - $alreadyDeducted;
+                if ($additionalNeeded <= 0) {
+                    continue;
+                }
+
                 $stock = \App\Models\StockBalance::where('warehouse_id', $warehouseId)
                     ->where('part_id', $partId)
                     ->first();
 
-                $available = $stock ? $stock->qty_on_hand : 0;
-                if ($available < $totalNeeded) {
-                    $part = \App\Models\Part::find($partId);
+                $available = $stock ? (int) $stock->qty_on_hand : 0;
+                if ($available < $additionalNeeded) {
+                    $part = \App\Models\Part::withTrashed()->find($partId);
                     $partName = $part ? "{$part->part_number} ({$part->name})" : "Part ID #{$partId}";
 
                     Notification::make()
                         ->title('Stok Gudang Tidak Mencukupi')
-                        ->body("Tidak dapat mengaktifkan Surat Jalan: stok untuk {$partName} di gudang hanya tersisa {$available}, dibutuhkan {$totalNeeded}.")
+                        ->body("Tidak dapat menyimpan Surat Jalan: stok untuk {$partName} di gudang hanya tersisa {$available}, dibutuhkan tambahan {$additionalNeeded}.")
                         ->danger()
                         ->persistent()
                         ->send();
@@ -171,5 +181,10 @@ class EditDeliveryOrder extends EditRecord
                 }
             }
         }
+    }
+
+    protected function afterSave(): void
+    {
+        app(\App\Services\InventoryService::class)->syncDeliveryOrderStock($this->record);
     }
 }

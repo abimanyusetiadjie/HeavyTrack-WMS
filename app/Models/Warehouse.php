@@ -19,6 +19,8 @@ class Warehouse extends Model
 
     public function activeStockBalances(): HasMany
     {
-        return $this->hasMany(StockBalance::class)->where('qty_on_hand', '>', 0);
+        return $this->hasMany(StockBalance::class)
+            ->where('qty_on_hand', '>', 0)
+            ->whereHas('part', fn ($q) => $q->where('is_active', true));
     }
 }

@@ -22,7 +22,7 @@ class StockLedger extends Model
 
     public function part(): BelongsTo
     {
-        return $this->belongsTo(Part::class);
+        return $this->belongsTo(Part::class)->withTrashed();
     }
 
     public function creator(): BelongsTo

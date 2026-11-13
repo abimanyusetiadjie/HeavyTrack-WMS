@@ -4,8 +4,6 @@ namespace App\Observers;
 
 use App\Models\GoodsReceipt;
 use App\Services\InventoryService;
-use Exception;
-use Illuminate\Support\Facades\DB;
 
 class GoodsReceiptObserver
 {
@@ -18,8 +16,8 @@ class GoodsReceiptObserver
 
     public function updated(GoodsReceipt $goodsReceipt): void
     {
-        if ($goodsReceipt->wasChanged('status')) {
-            $this->handleStatusChange($goodsReceipt, $goodsReceipt->getOriginal('status'), $goodsReceipt->status);
+        if ($goodsReceipt->wasChanged('status') || $goodsReceipt->wasChanged('warehouse_id')) {
+            $this->inventoryService->syncGoodsReceiptStock($goodsReceipt);
         }
     }
 
@@ -30,80 +28,16 @@ class GoodsReceiptObserver
             return;
         }
 
-        if ($goodsReceipt->status === 'RECEIVED') {
-            $goodsReceipt->loadMissing('items');
-            DB::transaction(function () use ($goodsReceipt) {
-                foreach ($goodsReceipt->items as $item) {
-                    $this->inventoryService->deductStock(
-                        $goodsReceipt->warehouse_id,
-                        $item->part_id,
-                        $item->qty_received,
-                        'GOODS_RECEIPT_VOID',
-                        $goodsReceipt->id,
-                        $goodsReceipt->receipt_number,
-                        'Penghapusan Dokumen LPB: ' . $goodsReceipt->receipt_number . ' (Stok Ditarik Kembali)'
-                    );
-                }
-            });
-        }
+        $this->inventoryService->syncGoodsReceiptStock($goodsReceipt, true);
     }
 
     public function restored(GoodsReceipt $goodsReceipt): void
     {
-        if ($goodsReceipt->status === 'RECEIVED') {
-            $goodsReceipt->loadMissing('items');
-            DB::transaction(function () use ($goodsReceipt) {
-                foreach ($goodsReceipt->items as $item) {
-                    $this->inventoryService->addStock(
-                        $goodsReceipt->warehouse_id,
-                        $item->part_id,
-                        $item->qty_received,
-                        'GOODS_RECEIPT',
-                        $goodsReceipt->id,
-                        $goodsReceipt->receipt_number,
-                        'Pemulihan Dokumen LPB: ' . $goodsReceipt->receipt_number . ' (Stok Dimasukkan Kembali)'
-                    );
-                }
-            });
-        }
+        $this->inventoryService->syncGoodsReceiptStock($goodsReceipt);
     }
 
-    public function handleStatusChange(GoodsReceipt $gr, ?string $oldStatus, string $newStatus)
+    public function handleStatusChange(GoodsReceipt $gr, ?string $oldStatus, string $newStatus): void
     {
-        // Transisi dari DRAFT ke RECEIVED -> Tambah stok (Atomik 1 Dokumen Penuh)
-        if ($oldStatus !== 'RECEIVED' && $newStatus === 'RECEIVED') {
-            $gr->loadMissing('items');
-            DB::transaction(function () use ($gr) {
-                foreach ($gr->items as $item) {
-                    $this->inventoryService->addStock(
-                        $gr->warehouse_id,
-                        $item->part_id,
-                        $item->qty_received,
-                        'GOODS_RECEIPT',
-                        $gr->id,
-                        $gr->receipt_number,
-                        'Penerimaan LPB: ' . $gr->receipt_number . ($gr->supplier_do_number ? ' (SJ: ' . $gr->supplier_do_number . ')' : '')
-                    );
-                }
-            });
-        }
-
-        // Transisi dari RECEIVED ke VOID -> Batalkan penambahan stok (kurangi kembali)
-        if ($oldStatus === 'RECEIVED' && $newStatus === 'VOID') {
-            $gr->loadMissing('items');
-            DB::transaction(function () use ($gr) {
-                foreach ($gr->items as $item) {
-                    $this->inventoryService->deductStock(
-                        $gr->warehouse_id,
-                        $item->part_id,
-                        $item->qty_received,
-                        'GOODS_RECEIPT_VOID',
-                        $gr->id,
-                        $gr->receipt_number,
-                        'Pembatalan Dokumen LPB: ' . $gr->receipt_number
-                    );
-                }
-            });
-        }
+        $this->inventoryService->syncGoodsReceiptStock($gr);
     }
 }
